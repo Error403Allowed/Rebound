@@ -34,5 +34,6 @@ rendering_device/driver.windows="d3d12"
 
 [autoload]
 
+Progression="*res://Progression/progression.gd"
 SettingsManager="*res://UI/settings_store.gd"
 UIManager="*res://UI/ui_manager.gd"

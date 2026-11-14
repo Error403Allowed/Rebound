@@ -42,10 +42,16 @@ var results_stats: Label
 var restart_button: Button
 var resume_button: Button
 var pause_active := false
+var run_id := 0
+var banked := false
+var bank_error: int = OK
+var new_best := false
+var waves_cleared := 0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	run_id = Progression.begin_run()
 	break_timer = first_wave_delay
 	_build_hud()
 	player = get_tree().get_first_node_in_group("player")
@@ -84,6 +90,7 @@ func _start_wave() -> void:
 
 
 func _end_wave() -> void:
+	waves_cleared += 1
 	in_break = true
 	break_timer = time_between_waves
 	score += score_per_wave
@@ -149,12 +156,13 @@ func _on_enemy_died(_enemy_type: int) -> void:
 
 func _on_player_died() -> void:
 	game_over = true
+	bank_run()
 	pause_active = false
 	get_tree().paused = true
 	resume_button.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "GAME OVER"
-	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun coins: %d\n\nRun coins are not saved yet." % [score, wave, kills, currency]
+	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun coins: %d\n\nEarned coins are banked when the run ends." % [score, wave, kills, currency]
 	results.show()
 	restart_button.grab_focus()
 	results.hide()
@@ -282,3 +290,14 @@ func _resume() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	UIManager.show_game()
+
+
+func bank_run() -> int:
+	if banked:
+		return OK
+	var previous_best: int = Progression.best_score
+	bank_error = Progression.finish_run(run_id, currency, score, wave)
+	if bank_error == OK:
+		banked = true
+		new_best = score > previous_best
+	return bank_error

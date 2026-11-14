@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://b6myd36evv3b6"]
+
+[sub_resource type="BoxShape3D" id="Trigger"]
+size = Vector3(3, 0.4, 3)
+
+[sub_resource type="StandardMaterial3D" id="FrameMaterial"]
+albedo_color = Color(0.1, 0.12, 0.15, 1)
+
+[sub_resource type="BoxMesh" id="Frame"]
+size = Vector3(3, 0.12, 3)
+
+[sub_resource type="BoxMesh" id="Surface"]
+size = Vector3(2.8, 0.14, 2.8)
+
+[node name="PlacedTrampoline" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("Trigger")
+
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="Frame" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.09, 0)
+material_override = SubResource("FrameMaterial")
+mesh = SubResource("Frame")
+
+[node name="Surface" type="MeshInstance3D" parent="Visuals"]
+mesh = SubResource("Surface")

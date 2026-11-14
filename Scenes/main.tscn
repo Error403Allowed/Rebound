@@ -24,37 +24,37 @@ glow_enabled = true
 radius = 0.4
 height = 1.8
 
-[node name="Main" type="Node3D" unique_id=474837367]
+[node name="Main" type="Node3D"]
 
-[node name="Scenery" type="Node3D" parent="." unique_id=1052628269]
+[node name="Scenery" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5112839, 0)
 script = ExtResource("1_21xkr")
 
-[node name="World" type="Node3D" parent="." unique_id=1170515838]
+[node name="World" type="Node3D" parent="."]
 script = ExtResource("5_kry3j")
 
-[node name="Grass" type="Node3D" parent="." unique_id=112516691]
+[node name="Grass" type="Node3D" parent="."]
 script = ExtResource("2_jjvhh")
 grass_material = ExtResource("2_kry3j")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=532265938]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_8gbba")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2069006142]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.8778102, -0.463643, -0.12035135, -0.47780037, 0.829674, 0.28870025, -0.03400147, 0.31092793, -0.94982517, 0, 12.717308, -7.6219816)
 shadow_enabled = true
 
-[node name="Player" type="CharacterBody3D" parent="." unique_id=1737231746]
+[node name="Player" type="CharacterBody3D" parent="."]
 script = ExtResource("2_bo1nx")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1884869227]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
 shape = SubResource("CapsuleShape3D_xgh8v")
 
-[node name="Head" type="Node3D" parent="Player" unique_id=38199390]
+[node name="Head" type="Node3D" parent="Player"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Player/Head" unique_id=60206485]
+[node name="Camera3D" type="Camera3D" parent="Player/Head"]
 
-[node name="WaveManager" type="Node" parent="." unique_id=302186373]
+[node name="WaveManager" type="Node" parent="."]
 script = ExtResource("6_21xkr")
 enemy_scene = ExtResource("7_6bp64")

@@ -58,6 +58,9 @@ var crosshair: Label
 
 func _ready() -> void:
 	add_to_group("player")
+	max_health = Progression.upgraded_health(max_health)
+	stomp_damage = Progression.upgraded_stomp(stomp_damage)
+	trampoline_cooldowns = Progression.upgraded_cooldowns(trampoline_cooldowns)
 	health = max_health
 	base_fov = camera.fov
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
