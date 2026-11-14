@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://brkywcw4q7i8e"]
 
 [ext_resource type="PackedScene" uid="uid://w0aspmdv1nou" path="res://Scenes/player.tscn" id="1_jjgbg"]
+[ext_resource type="Script" uid="uid://dopr0l2bbw7nv" path="res://Scenes/player.gd" id="2_bo1nx"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jjgbg"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -39,6 +40,7 @@ mesh = SubResource("QuadMesh_p1qig")
 
 [node name="Player" parent="." unique_id=2081837301 instance=ExtResource("1_jjgbg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+script = ExtResource("2_bo1nx")
 
 [node name="CSGCombiner3D" type="CSGCombiner3D" parent="." unique_id=1442076115]
 
