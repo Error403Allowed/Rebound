@@ -1,7 +1,11 @@
 [gd_scene format=3 uid="uid://brkywcw4q7i8e"]
 
+[ext_resource type="Script" uid="uid://ddptp7gx1mlp7" path="res://Scenes/scenery.gd" id="1_21xkr"]
 [ext_resource type="PackedScene" uid="uid://w0aspmdv1nou" path="res://Scenes/player.tscn" id="1_jjgbg"]
-[ext_resource type="Script" uid="uid://dopr0l2bbw7nv" path="res://Scenes/player.gd" id="2_bo1nx"]
+[ext_resource type="Script" uid="uid://dopr0l2bbw7nv" path="res://Scripts/player.gd" id="2_bo1nx"]
+[ext_resource type="Script" uid="uid://d4esdhxjbwtti" path="res://Scenes/grass.gd" id="2_jjvhh"]
+[ext_resource type="Material" uid="uid://bubb7b6kixth4" path="res://Textures/grass_material.tres" id="2_kry3j"]
+[ext_resource type="Script" uid="uid://dspsd6om7ybfx" path="res://Scenes/world.gd" id="5_kry3j"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jjgbg"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -15,16 +19,18 @@ background_mode = 2
 sky = SubResource("Sky_bo1nx")
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kry3j"]
-albedo_color = Color(0.35686275, 0.19215687, 0, 1)
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_xgh8v"]
-material = SubResource("StandardMaterial3D_kry3j")
-size = Vector2(75, 75)
-
-[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_p1qig"]
-
 [node name="Main" type="Node3D" unique_id=474837367]
+
+[node name="Scenery" type="Node3D" parent="." unique_id=1052628269]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5112839, 0)
+script = ExtResource("1_21xkr")
+
+[node name="World" type="Node3D" parent="." unique_id=1170515838]
+script = ExtResource("5_kry3j")
+
+[node name="Grass" type="Node3D" parent="." unique_id=112516691]
+script = ExtResource("2_jjvhh")
+grass_material = ExtResource("2_kry3j")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=532265938]
 environment = SubResource("Environment_8gbba")
@@ -32,14 +38,6 @@ environment = SubResource("Environment_8gbba")
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2069006142]
 transform = Transform3D(-0.8778102, -0.463643, -0.12035135, -0.47780037, 0.829674, 0.28870025, -0.03400147, 0.31092793, -0.94982517, 0, 12.717308, -7.6219816)
 shadow_enabled = true
-
-[node name="WorldFloor" type="StaticBody3D" parent="." unique_id=200740441]
-
-[node name="Plane" type="MeshInstance3D" parent="WorldFloor" unique_id=998161314]
-mesh = SubResource("PlaneMesh_xgh8v")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="WorldFloor" unique_id=1907024257]
-shape = SubResource("WorldBoundaryShape3D_p1qig")
 
 [node name="Player" parent="." unique_id=2081837301 instance=ExtResource("1_jjgbg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5112839, 0)
