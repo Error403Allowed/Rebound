@@ -162,7 +162,7 @@ func _on_player_died() -> void:
 	resume_button.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "GAME OVER"
-	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun coins: %d\n\nEarned coins are banked when the run ends." % [score, wave, kills, currency]
+	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun experience: %d\n\nEarned experience are banked when the run ends." % [score, wave, kills, currency]
 	results.show()
 	restart_button.grab_focus()
 	results.hide()
@@ -239,9 +239,9 @@ func _build_hud() -> void:
 
 func _update_hud() -> void:
 	if in_break:
-		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   Coins: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
+		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
 	else:
-		info.text = "Wave %d   |   Enemies left: %d   |   Kills: %d   |   Score: %d   |   Coins: %d" % [wave, to_spawn + alive, kills, score, currency]
+		info.text = "Wave %d   |   Enemies left: %d   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave, to_spawn + alive, kills, score, currency]
 
 
 func _show_banner(text: String) -> void:
@@ -255,18 +255,21 @@ func _show_banner(text: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if UIManager.screen != "" or UIManager.modal.visible or game_over:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_ESCAPE:
-			get_viewport().set_input_as_handled()
-			if game_over:
-				return
-			if pause_active:
-				_resume()
-			else:
+		match event.physical_keycode:
+			KEY_ESCAPE:
+				get_viewport().set_input_as_handled()
 				_pause()
-		elif event.physical_keycode == KEY_R:
-			get_viewport().set_input_as_handled()
-			UIManager.request_restart()
+				UIManager.open_settings("game")
+			KEY_F:
+				get_viewport().set_input_as_handled()
+				_pause()
+				UIManager.show_shop("game")
+			KEY_R:
+				get_viewport().set_input_as_handled()
+				UIManager.request_restart()
 
 
 func _pause() -> void:
@@ -274,7 +277,7 @@ func _pause() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "PAUSED"
-	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run coins: %d" % [score, wave, kills, currency]
+	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run experience: %d" % [score, wave, kills, currency]
 	resume_button.show()
 	results.show()
 	resume_button.grab_focus()

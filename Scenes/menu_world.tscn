@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://cmenuworld001"]
+
+[ext_resource type="Script" path="res://Scenes/scenery.gd" id="1_scn"]
+[ext_resource type="Script" path="res://Scenes/grass.gd" id="2_grs"]
+[ext_resource type="Material" path="res://Textures/grass_material.tres" id="3_mat"]
+[ext_resource type="Script" path="res://Scenes/menu_camera.gd" id="4_cam"]
+
+[sub_resource type="StandardMaterial3D" id="GroundMaterial"]
+albedo_color = Color(0.07, 0.22, 0.04, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="GroundMesh"]
+material = SubResource("GroundMaterial")
+size = Vector2(70, 70)
+
+[node name="MenuWorld" type="Node3D"]
+
+[node name="Scenery" type="Node3D" parent="."]
+script = ExtResource("1_scn")
+
+[node name="Grass" type="Node3D" parent="."]
+script = ExtResource("2_grs")
+grass_material = ExtResource("3_mat")
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.01, 0)
+mesh = SubResource("GroundMesh")
+
+[node name="MenuCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.2588191, 0, -0.2588191, 0.9659258, 0, 9, 22)
+fov = 65.0
+script = ExtResource("4_cam")

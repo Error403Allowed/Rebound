@@ -2,7 +2,7 @@
 
 ## Scope
 Complete front-end, tutorial, pause/results, preferences, HUD and feedback.
-Stage 4 currency banking, records and permanent upgrades remain unimplemented.
+Stage 4 currency banking, records and upgrades remain unimplemented.
 
 ## Foundation batch
 - Shared dark arcade theme with green focus accents.

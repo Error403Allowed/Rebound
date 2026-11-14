@@ -5,13 +5,14 @@ signal save_failed(error: int)
 
 const VERSION := 1
 const UPGRADES := {
+	"rebound": {"title": "Rebound", "description": "Unlock increasing launch power on consecutive bounces from the same trampoline: +1.5 per bounce, capped at +8.", "step": 1.5, "cap": 1, "cost": 55},
 	"health": {"title": "Vitality", "description": "Increase maximum and starting health.", "step": 20, "cap": 5, "cost": 25},
 	"stomp": {"title": "Impact", "description": "Deal more damage with every landing attack.", "step": 1, "cap": 3, "cost": 75},
 	"cooldown": {"title": "Quick Setup", "description": "Reduce all placement cooldowns by 0.5 seconds per level.", "step": 0.5, "cap": 5, "cost": 40},
 }
 var storage_path := "user://progression.cfg"
 var currency := 0
-var levels: Dictionary = {"health": 0, "stomp": 0, "cooldown": 0}
+var levels: Dictionary = {"health": 0, "stomp": 0, "cooldown": 0, "rebound": 0}
 var best_score := 0
 var highest_wave := 0
 var last_error: int = OK
@@ -37,7 +38,7 @@ func _valid_integer(value: Variant, maximum: int) -> bool:
 
 func load_progress() -> void:
 	currency = 0
-	levels = {"health": 0, "stomp": 0, "cooldown": 0}
+	levels = {"health": 0, "stomp": 0, "cooldown": 0, "rebound": 0}
 	best_score = 0
 	highest_wave = 0
 	load_notice = ""
@@ -141,3 +142,7 @@ func finish_run(id: int, earned: int, score: int, wave: int) -> int:
 	load_notice = ""
 	changed.emit()
 	return OK
+
+
+func upgraded_rebound_increment() -> float:
+	return 1.5 if int(levels.get("rebound", 0)) > 0 else 0.0

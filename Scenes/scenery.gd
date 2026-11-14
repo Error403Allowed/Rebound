@@ -105,13 +105,14 @@ func build_terrain() -> void:
 
 
 func build_environment() -> void:
-	var haze := Color(0.7, 0.82, 0.92)
+	var haze := Color(0.20, 0.26, 0.34)
 
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.25, 0.5, 0.85)
+	sky_mat.sky_top_color = Color(0.035, 0.065, 0.12)
 	sky_mat.sky_horizon_color = haze
 	sky_mat.ground_horizon_color = haze
-	sky_mat.ground_bottom_color = haze
+	sky_mat.ground_bottom_color = Color(0.07, 0.09, 0.12)
+	sky_mat.sky_energy_multiplier = 0.7
 
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
@@ -120,7 +121,9 @@ func build_environment() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.38, 0.46, 0.6)
+	env.ambient_light_energy = 0.65
 	env.fog_enabled = true
 	env.fog_light_color = haze
 	env.fog_density = 0.002
@@ -130,6 +133,8 @@ func build_environment() -> void:
 	add_child(we)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, -30, 0)
-	sun.shadow_enabled = false
+	sun.rotation_degrees = Vector3(-22, -30, 0)
+	sun.light_color = Color(0.95, 0.83, 0.68)
+	sun.light_energy = 0.8
+	sun.shadow_enabled = true
 	add_child(sun)

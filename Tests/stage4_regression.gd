@@ -20,7 +20,7 @@ func run_tests() -> void:
 	progression.load_progress()
 	if "--readback" in OS.get_cmdline_user_args():
 		check(progression.currency == 0, "separate process restores remaining currency")
-		check(progression.levels == {"health": 1, "stomp": 1, "cooldown": 1}, "separate process restores purchased levels")
+		check(progression.levels == {"health": 1, "stomp": 1, "cooldown": 1, "rebound": 1}, "separate process restores purchased levels")
 		check(progression.best_score == 500 and progression.highest_wave == 3, "separate process restores records")
 		await test_run_integration(progression)
 		print("STAGE4 READBACK FAILURES: ", failures)
@@ -59,14 +59,23 @@ func run_tests() -> void:
 	config.save(INVALID)
 	progression.storage_path = INVALID
 	progression.load_progress()
-	check(progression.currency == 0 and progression.levels == {"health": 0, "stomp": 0, "cooldown": 0}, "invalid save values use safe defaults")
+	check(progression.currency == 0 and progression.levels == {"health": 0, "stomp": 0, "cooldown": 0, "rebound": 0}, "invalid save values use safe defaults")
 	progression.storage_path = FIXTURE
 	progression.load_progress()
+	check(progression.upgraded_rebound_increment() == 0.0, "legacy save defaults Rebound to locked")
+	check(progression.price("rebound") == 55, "Rebound costs 55 experience")
+	check(progression.purchase("rebound") != OK and progression.levels.rebound == 0, "Rebound requires enough experience")
+	id = progression.begin_run()
+	check(progression.finish_run(id, 55, 0, 0) == OK, "fund Rebound using isolated fixture")
+	check(progression.purchase("rebound") == OK and progression.currency == 0 and progression.upgraded_rebound_increment() == 1.5, "Rebound unlock purchased and saved")
+	check(progression.purchase("rebound") != OK and progression.currency == 0, "Rebound is a one-time unlock")
 	print("STAGE4 TRANSACTION FAILURES: ", failures)
 	quit(0 if failures == 0 else 1)
 
 func test_run_integration(progression: Node) -> void:
 	var ui = root.get_node("UIManager")
+	ui.show_title()
+	check(ui.root_ui.find_children("*", "ScrollContainer", true, false).is_empty(), "title menu has no scroll container")
 	ui.show_shop("title")
 	check(ui.screen == "shop", "upgrade shop builds")
 	ui.start_run()
@@ -77,6 +86,8 @@ func test_run_integration(progression: Node) -> void:
 	if player == null:
 		check(false, "upgraded player loads")
 		return
+	check(is_instance_valid(ui.health_bar) and is_instance_valid(ui.cooldown) and is_instance_valid(ui.dash_bar), "HUD builds health, placement and dash bars")
+	check(player.rebound_increment == 1.5, "purchased Rebound applies to new run")
 	check(player.max_health == 120 and player.health == 120 and player.stomp_damage == 2 and player.trampoline_cooldowns == [4.5, 7.5, 11.5], "upgrades apply to new run")
 	ui.start_run()
 	var old_player = player

@@ -14,20 +14,28 @@ signal stomped
 @export var gravity: float = 26.0
 @export var mouse_sensitivity := 0.0025
 
+@export_group("Dash")
+@export var dash_recharge_time := 3.0
+@export var dash_minimum_charge := 0.2
+@export var dash_min_speed := 18.0
+@export var dash_max_speed := 32.0
+@export var dash_min_duration := 0.10
+@export var dash_max_duration := 0.22
+
 @export_group("Trampoline")
 @export var place_range := 10.0
 @export var tramp_radius := 1.5
 @export var world_size := 65.0
-@export var trampoline_launch_speeds: Array[float] = [12.0, 15.0, 20.0]
+@export var trampoline_launch_speeds: Array[float] = [16.0, 20.0, 25.0]
 @export var trampoline_charges: Array[int] = [4, 3, 2]
 @export var trampoline_cooldowns: Array[float] = [5.0, 8.0, 12.0]
-@export var rebound_increment := 1.5
+@export var rebound_increment := 0.0
 @export var maximum_rebound_bonus := 8.0
 
 @export_group("Combat")
 @export var max_health := 100
 @export var stomp_damage := 1
-@export var slam_radius := 1.5
+@export var slam_radius := 2.0
 @export var hit_invulnerability := 0.4
 @export var rebound_speed := 10.0
 
@@ -48,6 +56,12 @@ var hit_timer := 0.0
 var last_trampoline: Node = null
 var consecutive_bounces := 0
 var base_fov := 75.0
+var dash_charge := 1.0
+var dash_left := 0.0
+var dash_speed := 0.0
+var dash_direction := Vector3.ZERO
+var last_impact_frame := -1
+var last_fall_speed := 0.0
 
 var tramp_mesh: CylinderMesh
 var preview: MeshInstance3D
@@ -61,6 +75,7 @@ func _ready() -> void:
 	max_health = Progression.upgraded_health(max_health)
 	stomp_damage = Progression.upgraded_stomp(stomp_damage)
 	trampoline_cooldowns = Progression.upgraded_cooldowns(trampoline_cooldowns)
+	rebound_increment = Progression.upgraded_rebound_increment()
 	health = max_health
 	base_fov = camera.fov
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -105,12 +120,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity * (-1.0 if bool(SettingsManager.get_value("invert_y")) else 1.0), -1.5, 1.5)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
+			KEY_E:
+				if UIManager.screen == "" and not UIManager.modal.visible and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+					try_place()
 			KEY_1:
 				selected_tier = 0
 			KEY_2:
 				selected_tier = 1
 			KEY_3:
 				selected_tier = 2
+			KEY_Q:
+				try_dash()
 			KEY_R:
 				UIManager.request_restart()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -121,8 +141,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if health <= 0:
+	if health <= 0 or get_tree().paused:
 		return
+	dash_charge = minf(1.0, dash_charge + delta / maxf(0.01, dash_recharge_time))
 	cooldown_left = maxf(cooldown_left - delta, 0.0)
 	hit_timer = maxf(hit_timer - delta, 0.0)
 
@@ -157,8 +178,18 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal_velocity.x
 	velocity.z = horizontal_velocity.z
 
+	if dash_left > 0.0:
+		velocity.x = dash_direction.x * dash_speed
+		velocity.z = dash_direction.z * dash_speed
+		dash_left = maxf(0.0, dash_left - delta)
 	var fall_speed := velocity.y
+	last_fall_speed = fall_speed
 	move_and_slide()
+	if dash_left <= 0.0:
+		var flat_speed := Vector2(velocity.x, velocity.z).length()
+		if flat_speed > sprint_speed:
+			velocity.x *= sprint_speed / flat_speed
+			velocity.z *= sprint_speed / flat_speed
 
 	_check_slam(fall_speed)
 
@@ -209,6 +240,9 @@ func _check_slam(fall_speed: float) -> void:
 
 
 func _slam_impact() -> void:
+	if last_impact_frame == Engine.get_physics_frames():
+		return
+	last_impact_frame = Engine.get_physics_frames()
 	slammed = true
 	var origin := global_position
 	var hit_enemy := false
@@ -337,11 +371,15 @@ func _spawn_trampoline(pos: Vector3) -> void:
 func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 	if body != self or area.is_queued_for_deletion():
 		return
+	if health <= 0 or get_tree().paused:
+		return
+	if velocity.y < -3.0 or (velocity.y <= 0.0 and last_fall_speed < -3.0):
+		_slam_impact()
 	var tier := int(area.get_meta("tier"))
 	var charges := int(area.get_meta("charges"))
 	var bonus := register_trampoline_bounce(area)
 	var launch := trampoline_launch_speeds[tier] + bonus
-	velocity.y = launch
+	velocity.y = maxf(velocity.y, launch)
 	launched = true
 	slammed = false
 	charges = maxi(0, charges - 1)
@@ -360,7 +398,7 @@ func _update_hud() -> void:
 	hud.text = "HP: %d / %d
 Tier: %s
 %s
-WASD move | Shift sprint | Space jump | 1/2/3 tier | Left click place | Esc pause | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
+WASD move | Shift sprint | Space jump | Q dash | 1/2/3 tier | Left click place | Esc pause | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
 
 
 func _update_fov(delta: float, sprinting: bool) -> void:
@@ -386,3 +424,25 @@ func _show_damage_flash() -> void:
 	var tween := create_tween()
 	tween.tween_property(flash, "modulate:a", 0.0, 0.18)
 	tween.tween_callback(canvas.queue_free)
+
+
+func try_dash() -> bool:
+	if health <= 0 or get_tree().paused or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or UIManager.screen != "" or UIManager.modal.visible:
+		return false
+	if dash_left > 0.0 or dash_charge < dash_minimum_charge:
+		return false
+	var input := Vector2.ZERO
+	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
+	if Input.is_physical_key_pressed(KEY_S): input.y += 1.0
+	if Input.is_physical_key_pressed(KEY_A): input.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D): input.x += 1.0
+	dash_direction = global_transform.basis * Vector3(input.x, 0.0, input.y)
+	if dash_direction.length_squared() < 0.001:
+		dash_direction = -global_transform.basis.z
+	dash_direction.y = 0.0
+	dash_direction = dash_direction.normalized()
+	var strength := clampf((dash_charge - dash_minimum_charge) / maxf(0.01, 1.0 - dash_minimum_charge), 0.0, 1.0)
+	dash_speed = lerpf(dash_min_speed, dash_max_speed, strength)
+	dash_left = lerpf(dash_min_duration, dash_max_duration, strength)
+	dash_charge = 0.0
+	return true

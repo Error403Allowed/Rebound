@@ -4,14 +4,15 @@ const THEME = preload("res://UI/rebound_theme.tres")
 const GLASS = preload("res://UI/liquid_glass.gdshader")
 const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
+const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["BOUNCE. STOMP. SURVIVE.", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank coins at the end of a run and invest in permanent upgrades."],
-	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nEscape — pause\nR — restart with confirmation"],
-	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 12 / 4 charges / base 5-second cooldown\n2 BLUE: launch 15 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 20 / 2 charges / base 12-second cooldown\nAim at flat ground and LEFT CLICK. No E required. Placement uses one shared cooldown. Each launch consumes a charge."],
-	["BUILD YOUR REBOUND", "Return to the same trampoline to add 1.5 launch velocity per consecutive bounce, capped at +8. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
-	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 1.5 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
+	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank experience at the end of a run and invest in upgrades."],
+	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked experience; applies next run)\nEscape — settings\nR — restart with confirmation"],
+	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 16 / 4 charges / base 5-second cooldown\n2 BLUE: launch 20 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 25 / 2 charges / base 12-second cooldown\nAim at flat ground and press E (left click also works). Placement uses one shared cooldown. Each launch consumes a charge."],
+	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 experience to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
+	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
 	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],
-	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and coins update during the run. Death freezes gameplay and opens results. Death and confirmed restart or exit bank your run coins once. Spend banked coins between runs. Force-closing an unfinished run does not bank it."]
+	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and experience update during the run. Death freezes gameplay and opens results. Death and confirmed restart or exit bank your run experience once. Spend banked experience between runs. Force-closing an unfinished run does not bank it."]
 ]
 var root_ui: Control
 var content: VBoxContainer
@@ -27,10 +28,14 @@ var wave_text: Label
 var score_text: Label
 var tier_text: Label
 var cooldown: ProgressBar
+var dash_bar: TextureProgressBar
+var dash_text: Label
 var fps_text: Label
 var elapsed := 0.0
 var modal: ConfirmationDialog
 var pending_action := Callable()
+var menu_world: Node3D
+var settings_description: Label
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -57,7 +62,7 @@ func _player() -> Node:
 
 func _label(parent: Node, text: String, size: int = 22) -> Label:
 	var item := Label.new()
-	item.text = text
+	item.text = text.left(1).to_upper() + text.substr(1).to_lower() if text == text.to_upper() else text
 	item.add_theme_font_size_override("font_size", int(size * (1.18 if bool(SettingsManager.get_value("large_text")) else 1.0)))
 	item.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(item)
@@ -65,8 +70,9 @@ func _label(parent: Node, text: String, size: int = 22) -> Label:
 
 func _button(parent: Node, text: String, action: Callable) -> Button:
 	var item := Button.new()
-	item.text = text
-	item.custom_minimum_size.y = 56
+	item.text = text.left(1).to_upper() + text.substr(1).to_lower() if text == text.to_upper() else text
+	item.custom_minimum_size.y = 48
+	item.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	item.mouse_entered.connect(_animate_button.bind(item, true))
 	item.mouse_exited.connect(_animate_button.bind(item, false))
@@ -87,12 +93,11 @@ func _page(title: String, subtitle: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	if _manager() == null:
-		var backdrop_material := ShaderMaterial.new()
-		backdrop_material.shader = BACKDROP
-		backdrop_material.set_shader_parameter("motion", 0.0 if bool(SettingsManager.get_value("reduced_motion")) else 1.0)
-		shade.material = backdrop_material
+	if _manager() == null or (screen == "loading" and is_instance_valid(menu_world)):
+		_show_menu_world()
+		shade.color = Color(0.012, 0.02, 0.04, 0.22)
 	else:
+		_clear_menu_world()
 		shade.color = Color(0.012, 0.02, 0.04, 0.48)
 	root_ui.add_child(shade)
 	var margin := MarginContainer.new()
@@ -100,31 +105,44 @@ func _page(title: String, subtitle: String) -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 32)
 	root_ui.add_child(margin)
-	var center := CenterContainer.new()
+	var center := MarginContainer.new()
 	margin.add_child(center)
 	var panel := PanelContainer.new()
 	var viewport_size := get_viewport().get_visible_rect().size
-	panel.custom_minimum_size = Vector2(maxf(240.0, minf(1060.0, viewport_size.x - 64.0)), maxf(200.0, viewport_size.y - 96.0))
-	center.add_child(panel)
+	var compact := screen == "loading"
+	var desired_width := 620.0 if compact else 700.0 if screen == "title" else 1420.0 if screen == "settings" else 1060.0
+	var desired_height := 300.0 if compact else 720.0 if screen == "title" else viewport_size.y - 96.0
+	panel.custom_minimum_size = Vector2(maxf(240.0, minf(desired_width, viewport_size.x - 64.0)), maxf(180.0, minf(desired_height, viewport_size.y - 96.0)))
 	if not bool(SettingsManager.get_value("high_contrast")):
-		var glass := ColorRect.new()
-		glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var glass_material := ShaderMaterial.new()
-		glass_material.shader = GLASS
-		glass.material = glass_material
-		panel.add_child(glass)
-		glass.resized.connect(func(): glass_material.set_shader_parameter("rect_size", glass.size))
+		var clear_style := StyleBoxEmpty.new()
+
+		panel.add_theme_stylebox_override("panel", clear_style)
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN if screen == "title" else Control.SIZE_SHRINK_CENTER
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	center.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
+	var inset := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		inset.add_theme_constant_override("margin_" + side, 36 if side == "left" or side == "right" else 28)
+	panel.add_child(inset)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 18)
-	scroll.add_child(content)
-	_label(content, "R E B O U N D   /   " + screen.to_upper().replace("_", " "), 16).modulate = Color(0.48, 0.85, 0.75)
-	_label(content, title, 48)
+	content.add_theme_constant_override("separation", 12 if screen == "title" else 18)
+	if screen == "title":
+		scroll.free()
+		inset.add_child(content)
+	else:
+		inset.add_child(scroll)
+		scroll.add_child(content)
+	_label(content, "Rebound / " + screen.replace("_", " ").capitalize(), 16).modulate = Color(0.48, 0.85, 0.75)
+	_label(content, title, 48).modulate = Color.WHITE if screen == "title" else Color(0.85, 0.77, 0.6)
 	_label(content, subtitle, 20).modulate = Color(0.7, 0.78, 0.86)
 	var rule := HSeparator.new()
+	var line := StyleBoxLine.new()
+	line.color = Color(0.3, 0.65, 0.72, 0.6)
+	line.thickness = 1
+	rule.add_theme_stylebox_override("separator", line)
 	content.add_child(rule)
 	var hint := Label.new()
 	hint.text = "ESC  BACK    •    TAB / ARROWS  NAVIGATE    •    ENTER  SELECT"
@@ -134,6 +152,20 @@ func _page(title: String, subtitle: String) -> void:
 	root_ui.add_child(hint)
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.position = Vector2(36, viewport_size.y - 28)
+
+func _show_menu_world() -> void:
+	if menu_world != null and is_instance_valid(menu_world):
+		return
+	var packed := ResourceLoader.load(MENU_WORLD)
+	if packed == null:
+		return
+	menu_world = (packed as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(menu_world)
+
+func _clear_menu_world() -> void:
+	if menu_world != null and is_instance_valid(menu_world):
+		menu_world.queue_free()
+	menu_world = null
 
 func _focus_first() -> void:
 	var buttons := root_ui.find_children("*", "Button", true, false)
@@ -145,18 +177,14 @@ func _focus_first() -> void:
 func show_title() -> void:
 	screen = "title"
 	get_tree().paused = false
-	if not bool(SettingsManager.get_value("setup_complete")):
-		_show_welcome()
-		return
-	_page("REBOUND", "BOUNCE. STOMP. SURVIVE.")
-	_label(content, "Master your landing. Read the horde. Make the next bounce count.", 28)
+	_page("REBOUND", "Survival")
 	_button(content, "START SURVIVAL", start_run)
-	_button(content, "PERMANENT UPGRADES", func(): show_shop("title"))
+	_button(content, "UPGRADES", func(): show_shop("title"))
 	_button(content, "HOW TO PLAY", func(): open_help("title"))
 	_button(content, "SETTINGS", func(): open_settings("title"))
 	_button(content, "CREDITS", show_credits)
 	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Close the game?", func(): get_tree().quit()))
-	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     COINS  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 24)
+	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     EXPERIENCE  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 18)
 	if Progression.load_notice != "": _label(content, Progression.load_notice, 18)
 	_focus_first()
 
@@ -210,12 +238,14 @@ func confirm(title: String, message: String, action: Callable) -> void:
 	modal.popup_centered(Vector2i(540, 220))
 
 func start_run() -> void:
+	if loading: return
 	if not _bank_before_leaving(): return
 	get_tree().paused = false
 	screen = "loading"
-	_page("PREPARING YOUR RUN", "Bounce on the same trampoline to build launch power. Charges still apply.")
+	_page("PREPARING YOUR RUN", "Rebound is a shop unlock. Base launch strength is available to everyone. Charges still apply.")
 	load_bar = ProgressBar.new()
-	load_bar.custom_minimum_size.y = 28
+	load_bar.custom_minimum_size.y = 10
+	load_bar.show_percentage = false
 	content.add_child(load_bar)
 	var error := ResourceLoader.load_threaded_request(ARENA)
 	if error != OK:
@@ -248,12 +278,15 @@ func _process(delta: float) -> void:
 		if not get_tree().paused: elapsed += delta
 		health_bar.max_value = player.max_health
 		health_bar.value = player.health
-		health_text.text = "HEALTH  %d / %d" % [player.health, player.max_health]
-		wave_text.text = "WAVE %d IN %.1fs" % [manager.wave + 1, maxf(0.0, manager.break_timer)] if manager.in_break else "WAVE %d / %d ALIVE / %d PENDING" % [manager.wave, manager.alive, manager.to_spawn]
-		score_text.text = "SCORE %d   |   RUN COINS %d   |   %ds" % [manager.score, manager.currency, int(elapsed)]
-		tier_text.text = "[1] GREEN  [2] BLUE  [3] PURPLE\nSELECTED: %s / %s" % [player.TIER_NAMES[player.selected_tier], "READY — LEFT CLICK" if player.cooldown_left <= 0.0 else "COOLDOWN %.1fs" % player.cooldown_left]
 		cooldown.max_value = player.trampoline_cooldowns[player.selected_tier]
 		cooldown.value = maxf(0.0, cooldown.max_value - player.cooldown_left)
+		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
+		wave_text.text = "Experience: %d" % Progression.currency
+		score_text.text = "Score: %d" % manager.score
+		tier_text.text = '"E" to place trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
+		dash_bar.value = player.dash_charge * 100.0
+		dash_text.text = '"Q" dash: %d%%' % int(round(player.dash_charge * 100.0))
+		dash_bar.modulate = Color(0.45, 1.0, 0.75) if player.dash_charge >= 0.999 else Color.WHITE if player.dash_charge >= player.dash_minimum_charge else Color(0.6, 0.65, 0.7)
 		fps_text.text = "%d FPS" % Engine.get_frames_per_second() if bool(SettingsManager.get_value("show_fps")) else ""
 
 func _enter_game() -> void:
@@ -270,7 +303,36 @@ func _enter_game() -> void:
 	_apply_preferences()
 	show_game()
 
+func _hud_label(parent: Node, text: String, size: int = 22) -> Label:
+	var label := _label(parent, text, size)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
+	return label
+
+func _hud_bar(parent: Node, color: Color, height: float) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(240, height)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0, 0, 0, 0.35)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = color
+	for style in [track, fill]:
+		style.corner_radius_top_left = 4
+		style.corner_radius_top_right = 4
+		style.corner_radius_bottom_left = 4
+		style.corner_radius_bottom_right = 4
+	bar.add_theme_stylebox_override("background", track)
+	bar.add_theme_stylebox_override("fill", fill)
+	parent.add_child(bar)
+	return bar
+
 func show_game() -> void:
+	_clear_menu_world()
 	screen = ""
 	_clear()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -278,25 +340,59 @@ func show_game() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_ui.add_child(hud)
-	var top := VBoxContainer.new()
-	top.position = Vector2(28, 24)
-	top.custom_minimum_size.x = 720
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(top)
-	health_text = _label(top, "HEALTH")
-	health_bar = ProgressBar.new()
-	health_bar.custom_minimum_size = Vector2(320, 20)
-	health_bar.show_percentage = false
-	top.add_child(health_bar)
-	wave_text = _label(top, "PREPARE", 26)
-	score_text = _label(top, "SCORE")
-	tier_text = _label(top, "TRAMPOLINES")
-	cooldown = ProgressBar.new()
-	cooldown.show_percentage = false
-	cooldown.custom_minimum_size.y = 12
-	top.add_child(cooldown)
-	fps_text = _label(top, "", 18)
-	_label(top, "WASD move / Shift sprint / Space jump\n1–3 select / Left click place / Escape pause", 18)
+	var left := VBoxContainer.new()
+	left.position = Vector2(20, 20)
+	left.custom_minimum_size.x = 320
+	left.add_theme_constant_override("separation", 8)
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(left)
+	_hud_label(left, '"F" for upgrades')
+	wave_text = _hud_label(left, "Experience: %d" % Progression.currency)
+	score_text = _hud_label(left, "Score: 0")
+	fps_text = _hud_label(left, "", 10)
+	var right := VBoxContainer.new()
+	hud.add_child(right)
+	right.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	right.offset_left = -480
+	right.offset_right = -20
+	right.offset_top = 20
+	right.add_theme_constant_override("separation", 8)
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tier_text = _hud_label(right, '"E" to place trampoline')
+	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cooldown = _hud_bar(right, Color(0.4, 0.75, 1.0), 10)
+	health_text = _hud_label(right, "Health: 100/100")
+	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
+	var hint := _hud_label(hud, '"Esc" to open settings', 14)
+	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	hint.offset_left = 20
+	hint.offset_top = -40
+	hint.offset_bottom = -14
+	var dash_box := VBoxContainer.new()
+	hud.add_child(dash_box)
+	dash_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	dash_box.offset_left = -120
+	dash_box.offset_right = 120
+	dash_box.offset_top = -76
+	dash_box.offset_bottom = -20
+	dash_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dash_text = _hud_label(dash_box, '"Q" dash: 100%', 18)
+	dash_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dash_bar = TextureProgressBar.new()
+	dash_bar.fill_mode = TextureProgressBar.FILL_BILINEAR_LEFT_AND_RIGHT
+	dash_bar.max_value = 100.0
+	dash_bar.custom_minimum_size = Vector2(240, 8)
+	dash_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 240
+	texture.height = 8
+	dash_bar.texture_progress = texture
+	dash_bar.nine_patch_stretch = true
+	dash_box.add_child(dash_bar)
 	var player := _player()
 	if player != null: player.hud.hide()
 	var manager := _manager()
@@ -309,32 +405,32 @@ func show_pause() -> void:
 	_page("PAUSED", "The arena, enemies, attacks and wave countdown are frozen.")
 	var manager := _manager()
 	if manager != null:
-		_label(content, "Wave %d / Score %d / Kills %d / Run coins %d\nTime survived: %ds" % [manager.wave, manager.score, manager.kills, manager.currency, int(elapsed)], 26)
+		_label(content, "Wave %d / Score %d / Kills %d / Run experience %d\nTime survived: %ds" % [manager.wave, manager.score, manager.kills, manager.currency, int(elapsed)], 26)
 	_button(content, "RESUME", func():
 		_manager()._resume()
 		show_game())
 	_button(content, "SETTINGS", func(): open_settings("pause"))
 	_button(content, "HOW TO PLAY", func(): open_help("pause"))
 	_button(content, "RESTART RUN", request_restart)
-	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end and earned coins will be banked.", leave_run))
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end and earned coins will be banked.", quit_game))
+	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end and earned experience will be banked.", leave_run))
+	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end and earned experience will be banked.", quit_game))
 	_focus_first()
 
 func show_results() -> void:
 	screen = "results"
 	var manager := _manager()
-	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER", "Regroup. Invest. Bounce back stronger.")
+	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
 	_label(content, str(manager.score), 72)
 	_label(content, "FINAL SCORE", 20)
 	_label(content, "Wave reached: %d / Waves cleared: %d\nEnemies defeated: %d / Time: %ds" % [manager.wave, manager.waves_cleared, manager.kills, int(elapsed)], 26)
-	_label(content, "COINS EARNED  %d     BALANCE  %d" % [manager.currency, Progression.currency], 28)
+	_label(content, "EXPERIENCE EARNED  %d     BALANCE  %d" % [manager.currency, Progression.currency], 28)
 	if not manager.banked:
-		_label(content, "Progress could not be saved. Your earned coins are still held in this run. Retry before leaving.", 22)
+		_label(content, "Progress could not be saved. Your earned experience are still held in this run. Retry before leaving.", 22)
 		_button(content, "RETRY SAVE", func():
 			manager.bank_run()
 			show_results())
 	_button(content, "PLAY AGAIN", start_run)
-	var shop := _button(content, "PERMANENT UPGRADES", func(): show_shop("results"))
+	var shop := _button(content, "UPGRADES", func(): show_shop("results"))
 	shop.disabled = not manager.banked
 	_button(content, "SETTINGS", func(): open_settings("results"))
 	_button(content, "MAIN MENU", leave_run)
@@ -342,15 +438,17 @@ func show_results() -> void:
 	_focus_first()
 
 func request_restart() -> void:
-	confirm("Restart run?", "End this run, bank earned coins, and begin again?", start_run)
+	confirm("Restart run?", "End this run, bank earned experience, and begin again?", start_run)
 
 func leave_run() -> void:
 	if not _bank_before_leaving(): return
+	_clear_menu_world()
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://UI/boot.tscn")
 
 func _back() -> void:
 	match return_screen:
+		"game": _manager()._resume()
 		"pause": show_pause()
 		"results": show_results()
 		"welcome": _show_welcome()
@@ -362,7 +460,18 @@ func open_settings(origin: String) -> void:
 	_page("SETTINGS", "Your preferences apply immediately and are saved automatically.")
 	var tabs := TabContainer.new()
 	tabs.custom_minimum_size.y = 440
-	content.add_child(tabs)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 28)
+	content.add_child(body)
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(tabs)
+	var divider := VSeparator.new()
+	body.add_child(divider)
+	var help_box := VBoxContainer.new()
+	help_box.custom_minimum_size.x = 260
+	body.add_child(help_box)
+	_label(help_box, "SETTING DETAILS", 18).modulate = Color(0.85, 0.77, 0.6)
+	settings_description = _label(help_box, "Focus or hover a setting to view its details. Changes apply immediately and are saved automatically.", 20)
 	for title in ["Gameplay", "Camera", "Audio", "Video", "Accessibility", "Controls", "Data"]:
 		var scroll := ScrollContainer.new()
 		scroll.name = title
@@ -399,7 +508,7 @@ func open_settings(origin: String) -> void:
 				_toggle(box, "Disable damage flashing", "reduced_flashing")
 				_label(box, "Roles have text labels as well as colours. Menus support Tab/arrows, Enter and Escape.", 20)
 			"Controls":
-				_label(box, "WASD — Move\nMouse — Look\nShift — Sprint forward\nSpace — Jump\n1 / 2 / 3 — Select trampoline\nLeft click — Place\nEscape — Pause / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
+				_label(box, "WASD — Move\nMouse — Look\nShift — Sprint forward\nSpace — Jump\nQ — Charged dash (ground and air)\n1 / 2 / 3 — Select trampoline\nE / Left click — Place\nF — Upgrades (next run)\nEscape — Settings / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
 			"Data":
 				_label(box, "Settings file: user://settings.cfg\nPreferences and permanent progression are saved separately.", 22)
 				_button(box, "RESET SETTINGS", func(): confirm("Reset preferences?", "Restore default preferences? Your run is not reset.", func():
@@ -413,11 +522,15 @@ func _toggle(parent: Node, title: String, key: String) -> void:
 	var item := CheckButton.new()
 	item.text = title
 	item.button_pressed = bool(SettingsManager.get_value(key))
+	_setting_help(item, title + ": switch on or off. Changes are saved automatically.")
 	item.toggled.connect(func(value: bool): SettingsManager.set_value(key, value))
 	parent.add_child(item)
 
 func _slider(parent: Node, title: String, key: String, minimum: float, maximum: float, step_size: float) -> void:
-	var label := _label(parent, "%s: %s" % [title, str(SettingsManager.get_value(key))])
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := _label(row, "%s: %s" % [title, str(SettingsManager.get_value(key))])
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var slider := HSlider.new()
 	slider.min_value = minimum
 	slider.max_value = maximum
@@ -427,7 +540,9 @@ func _slider(parent: Node, title: String, key: String, minimum: float, maximum: 
 	slider.value_changed.connect(func(value: float):
 		label.text = "%s: %s" % [title, str(snappedf(value, step_size))]
 		SettingsManager.set_value(key, value))
-	parent.add_child(slider)
+	slider.custom_minimum_size.x = 220
+	row.add_child(slider)
+	_setting_help(slider, "%s: adjust from %s to %s. Changes are saved automatically." % [title, str(minimum), str(maximum)])
 
 func _option(parent: Node, title: String, key: String, labels: Array, values: Array) -> void:
 	_label(parent, title)
@@ -436,6 +551,7 @@ func _option(parent: Node, title: String, key: String, labels: Array, values: Ar
 	item.select(maxi(0, values.find(SettingsManager.get_value(key))))
 	item.item_selected.connect(func(index: int): SettingsManager.set_value(key, values[index]))
 	parent.add_child(item)
+	_setting_help(item, title + ": choose an option. Changes are saved automatically.")
 
 func _preference_changed(_key: String, _value: Variant) -> void:
 	_apply_preferences()
@@ -514,9 +630,9 @@ func quit_game() -> void:
 func show_shop(origin: String) -> void:
 	return_screen = origin
 	screen = "shop"
-	_page("BOUNCE BACK STRONGER", "PERMANENT UPGRADES / Applied at the start of your next run")
-	_label(content, "AVAILABLE COINS  %d" % Progression.currency, 34)
-	for key in ["health", "stomp", "cooldown"]:
+	_page("BOUNCE BACK STRONGER", "UPGRADES / Applied at the start of your next run")
+	_label(content, "AVAILABLE EXPERIENCE  %d" % Progression.currency, 34)
+	for key in ["health", "stomp", "cooldown", "rebound"]:
 		var definition: Dictionary = Progression.UPGRADES[key]
 		var level: int = int(Progression.levels[key])
 		var cap: int = int(definition.cap)
@@ -524,7 +640,7 @@ func show_shop(origin: String) -> void:
 		content.add_child(card)
 		var box := VBoxContainer.new()
 		card.add_child(box)
-		_label(box, str(definition.title).to_upper() + "     %d / %d" % [level, cap], 28)
+		_label(box, str(definition.title) + "     %d / %d" % [level, cap], 28)
 		_label(box, str(definition.description), 20)
 		var current := ""
 		var upcoming := ""
@@ -535,14 +651,17 @@ func show_shop(origin: String) -> void:
 			"stomp":
 				current = "%d stomp damage" % (1 + level)
 				upcoming = "%d stomp damage" % (2 + level)
+			"rebound":
+				current = "Unlocked: +1.5 per consecutive bounce, capped at +8" if level > 0 else "Locked: every bounce uses base launch strength"
+				upcoming = "Unlock +1.5 per consecutive bounce, capped at +8"
 			"cooldown":
 				current = "%.1f / %.1f / %.1fs" % [5.0 - level * 0.5, 8.0 - level * 0.5, 12.0 - level * 0.5]
 				upcoming = "%.1f / %.1f / %.1fs" % [5.0 - (level + 1) * 0.5, 8.0 - (level + 1) * 0.5, 12.0 - (level + 1) * 0.5]
 		_label(box, "CURRENT  " + current, 22)
 		if level < cap: _label(box, "NEXT  " + upcoming, 22)
 		var price: int = Progression.price(key)
-		var text := "MAXIMUM LEVEL" if level >= cap else "BUY / %d COINS" % price
-		if level < cap and Progression.currency < price: text = "NEED %d MORE COINS" % (price - Progression.currency)
+		var text := "MAXIMUM LEVEL" if level >= cap else "BUY / %d EXPERIENCE" % price
+		if level < cap and Progression.currency < price: text = "NEED %d MORE EXPERIENCE" % (price - Progression.currency)
 		var buy := _button(box, text, _purchase_upgrade.bind(key, origin))
 		buy.disabled = level >= cap or Progression.currency < price
 	_button(content, "BACK", _back)
@@ -567,3 +686,12 @@ func _animate_button(button: Button, active: bool) -> void:
 	var tween := button.create_tween()
 	button.set_meta("hover_tween", tween)
 	tween.tween_property(button, "modulate", target, 0.12)
+
+
+func _setting_help(control: Control, description: String) -> void:
+	control.tooltip_text = description
+	var update := func():
+		if is_instance_valid(settings_description):
+			settings_description.text = description
+	control.focus_entered.connect(update)
+	control.mouse_entered.connect(update)
