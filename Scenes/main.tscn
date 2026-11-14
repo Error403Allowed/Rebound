@@ -5,6 +5,8 @@
 [ext_resource type="Script" uid="uid://d4esdhxjbwtti" path="res://Scenes/grass.gd" id="2_jjvhh"]
 [ext_resource type="Material" uid="uid://bubb7b6kixth4" path="res://Textures/grass_material.tres" id="2_kry3j"]
 [ext_resource type="Script" uid="uid://dspsd6om7ybfx" path="res://Scenes/world.gd" id="5_kry3j"]
+[ext_resource type="Script" uid="uid://c4x1kdopwg5f6" path="res://Scenes/wave_manager.gd" id="6_21xkr"]
+[ext_resource type="PackedScene" uid="uid://dfc4lnwdviwss" path="res://Scenes/enemy.tscn" id="7_6bp64"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jjgbg"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -52,3 +54,7 @@ shape = SubResource("CapsuleShape3D_xgh8v")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Player/Head" unique_id=60206485]
+
+[node name="WaveManager" type="Node" parent="." unique_id=302186373]
+script = ExtResource("6_21xkr")
+enemy_scene = ExtResource("7_6bp64")

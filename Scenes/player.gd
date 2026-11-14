@@ -20,7 +20,8 @@ extends CharacterBody3D
 
 @export_group("Combat")
 @export var max_health := 100
-@export var stomp_damage := 1
+@export var stomp_damage := 1            # damage to each enemy hit by the landing
+@export var slam_radius := 3.0           # size of the landing damage area (metres)
 @export var hit_invulnerability := 0.4   # seconds of protection after being hit
 
 @onready var head: Node3D = $Head
@@ -31,14 +32,13 @@ const TRAMP_HEIGHT := 0.3
 var place_mode := false
 var cooldown_left := 0.0
 var launched := false
+var slammed := false                     # true once this launch has already landed its hit
 var health := 100
 var hit_timer := 0.0
-var stomped: Array = []                  # enemies already hit during this slam
 
 var tramp_mesh: CylinderMesh
 var preview: MeshInstance3D
 var preview_mat: StandardMaterial3D
-var stomp_zone: Area3D
 var hud: Label
 
 
@@ -68,15 +68,6 @@ func _ready() -> void:
 	preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	preview.visible = false
 	add_child(preview)
-
-	stomp_zone = Area3D.new()
-	var zone_shape := CollisionShape3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = 1.0
-	zone_shape.shape = sphere
-	stomp_zone.add_child(zone_shape)
-	stomp_zone.position = Vector3(0, 0.3, 0)
-	add_child(stomp_zone)
 
 	var layer := CanvasLayer.new()
 	hud = Label.new()
@@ -112,15 +103,18 @@ func _physics_process(delta: float) -> void:
 	cooldown_left = maxf(cooldown_left - delta, 0.0)
 	hit_timer = maxf(hit_timer - delta, 0.0)
 
+	# gravity: stronger on the way down, strongest after a trampoline launch
 	if not is_on_floor():
 		var g := gravity
 		if velocity.y < 0.0:
 			g *= slam_multiplier if launched else fall_multiplier
 		velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
 
+	# jump (hold space to keep jumping)
 	if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
 		velocity.y = jump_speed
 
+	# WASD
 	var input := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
 	if Input.is_physical_key_pressed(KEY_S): input.y += 1.0
@@ -132,14 +126,15 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, dir.x * move_speed, accel * delta)
 	velocity.z = move_toward(velocity.z, dir.z * move_speed, accel * delta)
 
-	if launched:
-		_stomp_check()
-
+	var fall_speed := velocity.y             # speed just before the collision
 	move_and_slide()
 
+	if launched:
+		_check_slam(fall_speed)
+
+	# landed: launch state is over
 	if launched and is_on_floor() and velocity.y <= 0.0:
 		launched = false
-		stomped.clear()
 
 	_update_preview()
 	_update_hud()
@@ -156,15 +151,52 @@ func take_damage(amount: int) -> void:
 		get_tree().call_deferred("reload_current_scene")   # placeholder: restart on death
 
 
-func _stomp_check() -> void:
-	if velocity.y > -3.0:                    # only while actually falling
+# landing on the ground OR on top of an enemy triggers the area damage, once per launch
+func _check_slam(fall_speed: float) -> void:
+	if slammed or fall_speed > -3.0:
 		return
-	for body in stomp_zone.get_overlapping_bodies():
-		if body in stomped:
-			continue
-		if body.is_in_group("enemy") and body.has_method("squish"):
-			stomped.append(body)
-			body.squish(stomp_damage)
+	for i in get_slide_collision_count():
+		if get_slide_collision(i).get_normal().y > 0.2:   # hit something from above
+			_slam_impact()
+			return
+
+
+func _slam_impact() -> void:
+	slammed = true
+	var origin := global_position
+	for e in get_tree().get_nodes_in_group("enemy"):
+		var flat := Vector2(e.global_position.x - origin.x, e.global_position.z - origin.z).length()
+		if flat <= slam_radius and absf(e.global_position.y - origin.y) < 2.5 and e.has_method("squish"):
+			e.squish(stomp_damage)
+	_spawn_shockwave(origin)
+
+
+# quick expanding ring so you can see the damage area
+func _spawn_shockwave(pos: Vector3) -> void:
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 1.0
+	cyl.bottom_radius = 1.0
+	cyl.height = 0.1
+	cyl.radial_segments = 24
+	cyl.rings = 1
+
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.8, 0.2, 0.6)
+
+	var ring := MeshInstance3D.new()
+	ring.mesh = cyl
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_tree().current_scene.add_child(ring)
+	ring.global_position = Vector3(pos.x, pos.y + 0.05, pos.z)
+	ring.scale = Vector3(0.2, 1.0, 0.2)
+
+	var tw := ring.create_tween().set_parallel()
+	tw.tween_property(ring, "scale", Vector3(slam_radius, 1.0, slam_radius), 0.2)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.25)
+	tw.chain().tween_callback(ring.queue_free)
 
 
 # ---------- trampoline ----------
@@ -178,9 +210,9 @@ func _aim() -> Dictionary:
 
 
 func _is_valid(hit: Dictionary) -> bool:
-	if hit.is_empty() or hit.normal.y < 0.7:
+	if hit.is_empty() or hit.normal.y < 0.7:      # only flat ground, not walls
 		return false
-	var limit := world_size / 2.0 - tramp_radius
+	var limit := world_size / 2.0 - tramp_radius  # keep it inside the walls
 	return absf(hit.position.x) <= limit and absf(hit.position.z) <= limit
 
 
@@ -216,6 +248,7 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	area.add_child(visual)
 
+	# trigger zone is taller than the visual so a fast fall can't skip it
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
 	shape.radius = tramp_radius
@@ -234,8 +267,8 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 		return
 	velocity.y = launch_speed
 	launched = true
-	stomped.clear()
-	area.queue_free()
+	slammed = false                          # a new launch gets a new landing hit
+	area.queue_free()                        # trampoline disappears after the jump
 
 
 func _update_hud() -> void:
