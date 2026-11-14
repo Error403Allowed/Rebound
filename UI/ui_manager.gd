@@ -419,7 +419,7 @@ func show_pause() -> void:
 func show_results() -> void:
 	screen = "results"
 	var manager := _manager()
-	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
+	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER", "Try again, we believe in you!")
 	_label(content, str(manager.score), 72)
 	_label(content, "FINAL SCORE", 20)
 	_label(content, "Wave reached: %d / Waves cleared: %d\nEnemies defeated: %d / Time: %ds" % [manager.wave, manager.waves_cleared, manager.kills, int(elapsed)], 26)
