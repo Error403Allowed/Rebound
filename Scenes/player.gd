@@ -1,40 +1,55 @@
 extends CharacterBody3D
 
+signal health_changed(current: int)
+signal died
+signal stomped
+
 @export_group("Movement")
 @export var move_speed := 11.0
+@export var sprint_speed := 16.5
 @export var ground_accel := 90.0
-@export var air_accel := 20.0
+@export var air_accel := 6.0
+@export var air_drag := 2.5
 @export var jump_speed := 8.0
 @export var gravity := 22.0
+@export var fall_gravity := 26.0
 @export var fall_multiplier := 1.4
 @export var mouse_sensitivity := 0.0025
 
 @export_group("Trampoline")
-@export var launch_speed := 24.0
-@export var slam_multiplier := 2.5
-@export var max_fall_speed := 60.0
 @export var place_range := 10.0
-@export var place_cooldown := 5.0
 @export var tramp_radius := 1.5
-@export var world_size := 65.0           # must match the World script
+@export var world_size := 65.0
+@export var trampoline_launch_speeds: Array[float] = [9.0, 11.0, 14.0]
+@export var trampoline_charges: Array[int] = [4, 3, 2]
+@export var trampoline_cooldowns: Array[float] = [5.0, 8.0, 12.0]
+@export var rebound_increment := 1.5
+@export var maximum_rebound_bonus := 8.0
 
 @export_group("Combat")
 @export var max_health := 100
-@export var stomp_damage := 1            # damage to each enemy hit by the landing
-@export var slam_radius := 3.0           # size of the landing damage area (metres)
-@export var hit_invulnerability := 0.4   # seconds of protection after being hit
+@export var stomp_damage := 1
+@export var slam_radius := 3.0
+@export var hit_invulnerability := 0.4
+@export var rebound_speed := 10.0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 
 const TRAMP_HEIGHT := 0.3
+const TIER_COLORS := [Color(0.2, 0.9, 0.4), Color(0.2, 0.5, 1.0), Color(0.7, 0.3, 1.0)]
+const TIER_NAMES := ["GREEN", "BLUE", "PURPLE"]
 
 var place_mode := false
+var selected_tier := 0
 var cooldown_left := 0.0
 var launched := false
-var slammed := false                     # true once this launch has already landed its hit
+var slammed := false
 var health := 100
 var hit_timer := 0.0
+var last_trampoline: Node = null
+var consecutive_bounces := 0
+var base_fov := 75.0
 
 var tramp_mesh: CylinderMesh
 var preview: MeshInstance3D
@@ -45,6 +60,7 @@ var hud: Label
 func _ready() -> void:
 	add_to_group("player")
 	health = max_health
+	base_fov = camera.fov
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	tramp_mesh = CylinderMesh.new()
@@ -53,10 +69,6 @@ func _ready() -> void:
 	tramp_mesh.height = TRAMP_HEIGHT
 	tramp_mesh.radial_segments = 16
 	tramp_mesh.rings = 1
-	var tramp_mat := StandardMaterial3D.new()
-	tramp_mat.albedo_color = Color(1.0, 0.45, 0.1)
-	tramp_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	tramp_mesh.material = tramp_mat
 
 	preview_mat = StandardMaterial3D.new()
 	preview_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -72,6 +84,7 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	hud = Label.new()
 	hud.position = Vector2(20, 20)
+	hud.add_theme_font_size_override("font_size", 22)
 	layer.add_child(hud)
 	var cross := Label.new()
 	cross.text = "+"
@@ -88,10 +101,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.5, 1.5)
 	elif event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_E:
-			place_mode = not place_mode
-		elif event.physical_keycode == KEY_ESCAPE:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		match event.physical_keycode:
+			KEY_1:
+				selected_tier = 0
+			KEY_2:
+				selected_tier = 1
+			KEY_3:
+				selected_tier = 2
+			KEY_E:
+				place_mode = not place_mode
+			KEY_ESCAPE:
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			KEY_R:
+				get_tree().reload_current_scene()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -103,18 +125,20 @@ func _physics_process(delta: float) -> void:
 	cooldown_left = maxf(cooldown_left - delta, 0.0)
 	hit_timer = maxf(hit_timer - delta, 0.0)
 
-	# gravity: stronger on the way down, strongest after a trampoline launch
 	if not is_on_floor():
-		var g := gravity
+		var applied_gravity := gravity
 		if velocity.y < 0.0:
-			g *= slam_multiplier if launched else fall_multiplier
-		velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
+			applied_gravity = fall_gravity
+		velocity.y = maxf(velocity.y - applied_gravity * delta, -40.0)
 
-	# jump (hold space to keep jumping)
+		var horizontal := Vector3(velocity.x, 0.0, velocity.z)
+		horizontal *= maxf(0.0, 1.0 - air_drag * delta)
+		velocity.x = horizontal.x
+		velocity.z = horizontal.z
+
 	if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
 		velocity.y = jump_speed
 
-	# WASD
 	var input := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
 	if Input.is_physical_key_pressed(KEY_S): input.y += 1.0
@@ -122,41 +146,62 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D): input.x += 1.0
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 
+	var sprinting := Input.is_physical_key_pressed(KEY_SHIFT) and input.y < 0.0
+	var current_speed := sprint_speed if sprinting else move_speed
 	var accel := ground_accel if is_on_floor() else air_accel
-	velocity.x = move_toward(velocity.x, dir.x * move_speed, accel * delta)
-	velocity.z = move_toward(velocity.z, dir.z * move_speed, accel * delta)
+	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	if is_on_floor():
+		horizontal_velocity = horizontal_velocity.move_toward(Vector3(dir.x, 0.0, dir.z) * current_speed, accel * delta)
+	elif dir != Vector3.ZERO:
+		var available_speed := current_speed - horizontal_velocity.dot(Vector3(dir.x, 0.0, dir.z))
+		if available_speed > 0.0:
+			horizontal_velocity += Vector3(dir.x, 0.0, dir.z) * minf(air_accel * delta, available_speed)
+	velocity.x = horizontal_velocity.x
+	velocity.z = horizontal_velocity.z
 
-	var fall_speed := velocity.y             # speed just before the collision
+	var fall_speed := velocity.y
 	move_and_slide()
 
 	if launched:
 		_check_slam(fall_speed)
 
-	# landed: launch state is over
 	if launched and is_on_floor() and velocity.y <= 0.0:
 		launched = false
 
 	_update_preview()
 	_update_hud()
+	_update_fov(delta, sprinting)
 
 
-# ---------- combat ----------
+func register_trampoline_bounce(trampoline: Node) -> float:
+	if trampoline == last_trampoline:
+		consecutive_bounces += 1
+	else:
+		consecutive_bounces = 0
+	last_trampoline = trampoline
+	return minf(consecutive_bounces * rebound_increment, maximum_rebound_bonus)
 
-func take_damage(amount: int) -> void:
-	if hit_timer > 0.0 or health <= 0:
+
+func take_damage(amount: int, attacker: Node = null) -> void:
+	if hit_timer > 0.0 or health <= 0 or amount <= 0:
 		return
-	health -= amount
+	if attacker != null and attacker.has_meta("stomped_frame"):
+		if Engine.get_physics_frames() - int(attacker.get_meta("stomped_frame")) <= 1:
+			return
+	health = maxi(0, health - amount)
 	hit_timer = hit_invulnerability
+	health_changed.emit(health)
+	_show_damage_flash()
 	if health <= 0:
-		get_tree().call_deferred("reload_current_scene")   # placeholder: restart on death
+		died.emit()
 
 
-# landing on the ground OR on top of an enemy triggers the area damage, once per launch
 func _check_slam(fall_speed: float) -> void:
 	if slammed or fall_speed > -3.0:
 		return
-	for i in get_slide_collision_count():
-		if get_slide_collision(i).get_normal().y > 0.2:   # hit something from above
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		if collision.get_normal().y > 0.2:
 			_slam_impact()
 			return
 
@@ -164,42 +209,41 @@ func _check_slam(fall_speed: float) -> void:
 func _slam_impact() -> void:
 	slammed = true
 	var origin := global_position
-	for e in get_tree().get_nodes_in_group("enemy"):
-		var flat := Vector2(e.global_position.x - origin.x, e.global_position.z - origin.z).length()
-		if flat <= slam_radius and absf(e.global_position.y - origin.y) < 2.5 and e.has_method("squish"):
-			e.squish(stomp_damage)
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		var flat := Vector2(enemy.global_position.x - origin.x, enemy.global_position.z - origin.z).length()
+		if flat <= slam_radius and absf(enemy.global_position.y - origin.y) < 2.5 and enemy.has_method("squish"):
+			enemy.set_meta("stomped_frame", Engine.get_physics_frames())
+			enemy.squish(stomp_damage)
 	_spawn_shockwave(origin)
+	stomped.emit()
 
 
-# quick expanding ring so you can see the damage area
 func _spawn_shockwave(pos: Vector3) -> void:
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 1.0
-	cyl.bottom_radius = 1.0
-	cyl.height = 0.1
-	cyl.radial_segments = 24
-	cyl.rings = 1
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 1.0
+	cylinder.bottom_radius = 1.0
+	cylinder.height = 0.1
+	cylinder.radial_segments = 24
+	cylinder.rings = 1
 
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.8, 0.2, 0.6)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color(1.0, 0.8, 0.2, 0.6)
 
 	var ring := MeshInstance3D.new()
-	ring.mesh = cyl
-	ring.material_override = mat
+	ring.mesh = cylinder
+	ring.material_override = material
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	get_tree().current_scene.add_child(ring)
 	ring.global_position = Vector3(pos.x, pos.y + 0.05, pos.z)
 	ring.scale = Vector3(0.2, 1.0, 0.2)
 
-	var tw := ring.create_tween().set_parallel()
-	tw.tween_property(ring, "scale", Vector3(slam_radius, 1.0, slam_radius), 0.2)
-	tw.tween_property(mat, "albedo_color:a", 0.0, 0.25)
-	tw.chain().tween_callback(ring.queue_free)
+	var tween := ring.create_tween().set_parallel()
+	tween.tween_property(ring, "scale", Vector3(slam_radius, 1.0, slam_radius), 0.2)
+	tween.tween_property(material, "albedo_color:a", 0.0, 0.25)
+	tween.chain().tween_callback(ring.queue_free)
 
-
-# ---------- trampoline ----------
 
 func _aim() -> Dictionary:
 	var from := camera.global_position
@@ -210,9 +254,9 @@ func _aim() -> Dictionary:
 
 
 func _is_valid(hit: Dictionary) -> bool:
-	if hit.is_empty() or hit.normal.y < 0.7:      # only flat ground, not walls
+	if hit.is_empty() or hit.normal.y < 0.7:
 		return false
-	var limit := world_size / 2.0 - tramp_radius  # keep it inside the walls
+	var limit := world_size / 2.0 - tramp_radius
 	return absf(hit.position.x) <= limit and absf(hit.position.z) <= limit
 
 
@@ -225,7 +269,7 @@ func _update_preview() -> void:
 		return
 	preview.visible = true
 	preview.global_position = hit.position + Vector3(0, TRAMP_HEIGHT / 2.0, 0)
-	preview_mat.albedo_color = Color(0.2, 1.0, 0.3, 0.5) if cooldown_left <= 0.0 else Color(1.0, 0.2, 0.2, 0.5)
+	preview_mat.albedo_color = Color(TIER_COLORS[selected_tier], 0.55) if cooldown_left <= 0.0 else Color(1.0, 0.2, 0.2, 0.5)
 
 
 func try_place() -> void:
@@ -235,27 +279,45 @@ func try_place() -> void:
 	if not _is_valid(hit):
 		return
 	_spawn_trampoline(hit.position)
-	cooldown_left = place_cooldown
+	cooldown_left = trampoline_cooldowns[selected_tier]
 	place_mode = false
 
 
 func _spawn_trampoline(pos: Vector3) -> void:
 	var area := Area3D.new()
+	area.set_meta("tier", selected_tier)
+	area.set_meta("charges", trampoline_charges[selected_tier])
 
 	var visual := MeshInstance3D.new()
-	visual.mesh = tramp_mesh
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = tramp_radius
+	mesh.bottom_radius = tramp_radius
+	mesh.height = TRAMP_HEIGHT
+	mesh.radial_segments = 16
+	mesh.rings = 1
+	var material := StandardMaterial3D.new()
+	material.albedo_color = TIER_COLORS[selected_tier]
+	mesh.material = material
+	visual.mesh = mesh
 	visual.position.y = TRAMP_HEIGHT / 2.0
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	area.add_child(visual)
 
-	# trigger zone is taller than the visual so a fast fall can't skip it
-	var col := CollisionShape3D.new()
+	var charge_label := Label3D.new()
+	charge_label.position.y = 0.7
+	charge_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	charge_label.font_size = 48
+	charge_label.pixel_size = 0.008
+	charge_label.text = str(trampoline_charges[selected_tier])
+	area.add_child(charge_label)
+
+	var collision := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
 	shape.radius = tramp_radius
 	shape.height = 0.8
-	col.shape = shape
-	col.position.y = 0.4
-	area.add_child(col)
+	collision.shape = shape
+	collision.position.y = 0.4
+	area.add_child(collision)
 
 	area.body_entered.connect(_on_tramp_entered.bind(area))
 	get_tree().current_scene.add_child(area)
@@ -265,14 +327,49 @@ func _spawn_trampoline(pos: Vector3) -> void:
 func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 	if body != self or area.is_queued_for_deletion():
 		return
-	velocity.y = launch_speed
+	var tier := int(area.get_meta("tier"))
+	var charges := int(area.get_meta("charges"))
+	var bonus := register_trampoline_bounce(area)
+	var launch := trampoline_launch_speeds[tier] + bonus
+	velocity.y = launch
 	launched = true
-	slammed = false                          # a new launch gets a new landing hit
-	area.queue_free()                        # trampoline disappears after the jump
+	slammed = false
+	charges = maxi(0, charges - 1)
+	area.set_meta("charges", charges)
+	var label := area.get_child(1) as Label3D
+	if label != null:
+		label.text = str(charges)
+	if charges <= 0:
+		area.queue_free()
 
 
 func _update_hud() -> void:
-	var status := "Trampoline ready (E)" if cooldown_left <= 0.0 else "Trampoline in %.1fs" % cooldown_left
+	var status := "%s trampoline ready (E)" % TIER_NAMES[selected_tier] if cooldown_left <= 0.0 else "%s trampoline in %.1fs" % [TIER_NAMES[selected_tier], cooldown_left]
 	if place_mode:
 		status = "PLACE MODE: click to place   |   " + status
-	hud.text = "HP: %d / %d\n%s" % [health, max_health, status]
+	hud.text = "HP: %d / %d
+Tier: %s
+%s
+WASD move | Shift sprint | Space jump | 1/2/3 tier | E place | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
+
+
+func _update_fov(delta: float, sprinting: bool) -> void:
+	var jump_fov := 0.0
+	if not is_on_floor():
+		jump_fov = clampf((absf(velocity.y) - 4.0) * 0.7, 0.0, 16.0)
+	var target_fov := base_fov + (15.0 if sprinting else 0.0) + jump_fov
+	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-10.0 * delta))
+
+
+func _show_damage_flash() -> void:
+	var flash := ColorRect.new()
+	flash.color = Color(1.0, 0.2, 0.2, 0.35)
+	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var canvas := CanvasLayer.new()
+	canvas.layer = 10
+	canvas.add_child(flash)
+	add_child(canvas)
+	var tween := create_tween()
+	tween.tween_property(flash, "modulate:a", 0.0, 0.18)
+	tween.tween_callback(canvas.queue_free)
