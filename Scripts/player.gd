@@ -3,6 +3,8 @@ extends CharacterBody3D
 @export var speed: float = 5.0
 @export var sprint_speed: float = 7.5
 @export var jump_velocity: float = 4.5
+@export var fall_gravity: float = 26.0
+@export var max_fall_speed: float = 40.0
 @export var mouse_sensitivity: float = 0.002
 @export var ground_acceleration: float = 50.0
 @export var air_acceleration: float = 15.0
@@ -36,7 +38,9 @@ func _physics_process(delta: float) -> void:
 	var controls_active: bool = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	var grounded: bool = is_on_floor() and velocity.y <= 0.0
 	if not grounded:
-		velocity.y -= gravity * delta
+		var applied_gravity: float = fall_gravity if velocity.y < 0.0 else gravity
+		velocity.y -= applied_gravity * delta
+		velocity.y = maxf(velocity.y, -max_fall_speed)
 
 	var jump_held: bool = Input.is_physical_key_pressed(KEY_SPACE)
 	if controls_active and jump_held and not _jump_was_held and grounded:
