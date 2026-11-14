@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bubb7b6kixth4"]
+
+[ext_resource type="Shader" uid="uid://bi14gr3lqtxjb" path="res://Textures/grass.gdshader" id="1_0ifrx"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_0ifrx")
+shader_parameter/color_base = Color(0.1, 0.3, 0.06, 1)
+shader_parameter/color_tip = Color(0.5, 0.78, 0.22, 1)
+shader_parameter/blade_height = 0.6
+shader_parameter/wind_strength = 0.25
+shader_parameter/wind_speed = 1.5
+shader_parameter/wind_scale = 0.3

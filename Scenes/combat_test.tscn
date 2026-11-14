@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dlitrxnl8meur"]
 
-[ext_resource type="Script" path="res://Scripts/survival_run.gd" id="1"]
+[ext_resource type="Script" uid="uid://du2v5fo0pnoxo" path="res://Scripts/survival_run.gd" id="1"]
 
-[node name="CombatTest" type="Node3D"]
+[node name="CombatTest" type="Node3D" unique_id=765497985]
 script = ExtResource("1")
