@@ -37,8 +37,8 @@ func _resolve_contact() -> void:
 		return
 	var offset: Vector3 = player.global_position - global_position
 	var horizontal: float = Vector2(offset.x, offset.z).length()
-	if horizontal < 1.05 and absf(offset.y) < 1.55:
-		player.take_damage(20)
+	if horizontal < 1.35 and absf(offset.y) < 1.8:
+		player.take_damage(20, self)
 
 func take_damage(amount: int) -> bool:
 	if dead or amount <= 0:
