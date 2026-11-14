@@ -40,6 +40,7 @@ var material: StandardMaterial3D
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	var stats: Dictionary = STATS[type]
 	health = stats["health"]
 	speed = stats["speed"]
@@ -78,11 +79,14 @@ func _ready() -> void:
 	label.font_size = 34
 	label.pixel_size = 0.006
 	label.text = ROLE_NAMES[role]
+	label.visible = bool(SettingsManager.get_value("enemy_labels"))
 	add_child(label)
 
 
 func _physics_process(delta: float) -> void:
-	if dead or player == null:
+	if get_tree().paused:
+		return
+	if dead or not is_instance_valid(player) or player.health <= 0:
 		return
 	ability_cooldown = maxf(0.0, ability_cooldown - delta)
 	attack_timer = maxf(0.0, attack_timer - delta)
@@ -91,7 +95,13 @@ func _physics_process(delta: float) -> void:
 	var flat_distance := Vector2(offset.x, offset.z).length()
 	var toward := Vector3(offset.x, 0.0, offset.z).normalized() if flat_distance > 0.1 else Vector3.FORWARD
 	var side := Vector3(-toward.z, 0.0, toward.x) * orbit_sign
-	var direction := toward
+	var player_motion: Vector3 = Vector3(player.velocity.x, 0.0, player.velocity.z)
+	var lead_time: float = clampf(flat_distance / maxf(speed, 0.1) * 0.15, 0.0, 0.45)
+	var lead: Vector3 = player_motion * lead_time
+	if lead.length() > 3.0:
+		lead = lead.normalized() * 3.0
+	var pursuit: Vector3 = (Vector3(offset.x, 0.0, offset.z) + lead).normalized()
+	var direction := pursuit
 	var movement_speed := speed
 	var airborne := offset.y > 1.6
 	var falling: bool = airborne and player.velocity.y < -2.0
@@ -100,6 +110,8 @@ func _physics_process(delta: float) -> void:
 		tracking_descent = false
 		reacted = false
 		reaction_time = 0.0
+		if action.is_empty():
+			telegraph = false
 
 	if role == Role.DODGER and falling and not reacted and action.is_empty():
 		var time_to_contact := clampf((offset.y - 1.8) / maxf(-player.velocity.y, 0.1), 0.0, 1.0)
@@ -150,9 +162,19 @@ func _physics_process(delta: float) -> void:
 				action = ""
 				ability_cooldown = maxf(ability_cooldown, 3.0)
 	else:
-		if role == Role.FLANKER and flat_distance > 2.0:
-			direction = (toward + side * 0.85).normalized()
-		elif flat_distance < 1.0:
+		if airborne:
+			var landing_time: float = clampf((float(player.velocity.y) + sqrt(float(player.velocity.y) * float(player.velocity.y) + 2.0 * 26.0 * maxf(offset.y - 1.0, 0.0))) / 26.0, 0.0, 0.65)
+			var landing_lead: Vector3 = player_motion * landing_time
+			if landing_lead.length() > 4.0:
+				landing_lead = landing_lead.normalized() * 4.0
+			var landing_offset: Vector3 = Vector3(offset.x, 0.0, offset.z) + landing_lead
+			var landing_toward: Vector3 = landing_offset.normalized()
+			var landing_side: Vector3 = Vector3(-landing_toward.z, 0.0, landing_toward.x) * orbit_sign
+			direction = (landing_toward * clampf((landing_offset.length() - 2.5) / 2.5, -0.7, 1.0) + landing_side * 0.8).normalized()
+		elif role == Role.FLANKER and flat_distance > 2.0:
+			var flank_weight: float = clampf((flat_distance - 2.0) / 5.0, 0.0, 0.85)
+			direction = (pursuit + side * flank_weight).normalized()
+		elif flat_distance < 0.65:
 			direction = side
 		var separation := Vector3.ZERO
 		for other in get_tree().get_nodes_in_group("enemy"):
@@ -163,7 +185,8 @@ func _physics_process(delta: float) -> void:
 			var distance := away.length()
 			if distance > 0.01 and distance < 2.0:
 				separation += away.normalized() * (2.0 - distance)
-		direction = (direction + separation * 0.7).normalized()
+		var separation_weight: float = 0.2 if flat_distance < 2.5 and not airborne else 0.7
+		direction = (direction + separation * separation_weight).normalized()
 
 	var proposed := global_position + direction * movement_speed * delta
 	if absf(proposed.x) > 31.0:

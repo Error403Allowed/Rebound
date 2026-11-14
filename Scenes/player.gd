@@ -7,20 +7,18 @@ signal stomped
 @export_group("Movement")
 @export var move_speed := 11.0
 @export var sprint_speed := 16.5
-@export var ground_accel := 90.0
+@export var ground_accel := 70.0
 @export var air_accel := 6.0
 @export var air_drag := 2.5
 @export var jump_speed := 8.0
-@export var gravity := 22.0
-@export var fall_gravity := 26.0
-@export var fall_multiplier := 1.4
+@export var gravity: float = 26.0
 @export var mouse_sensitivity := 0.0025
 
 @export_group("Trampoline")
 @export var place_range := 10.0
 @export var tramp_radius := 1.5
 @export var world_size := 65.0
-@export var trampoline_launch_speeds: Array[float] = [9.0, 11.0, 14.0]
+@export var trampoline_launch_speeds: Array[float] = [12.0, 15.0, 20.0]
 @export var trampoline_charges: Array[int] = [4, 3, 2]
 @export var trampoline_cooldowns: Array[float] = [5.0, 8.0, 12.0]
 @export var rebound_increment := 1.5
@@ -29,7 +27,7 @@ signal stomped
 @export_group("Combat")
 @export var max_health := 100
 @export var stomp_damage := 1
-@export var slam_radius := 3.0
+@export var slam_radius := 1.5
 @export var hit_invulnerability := 0.4
 @export var rebound_speed := 10.0
 
@@ -55,6 +53,7 @@ var tramp_mesh: CylinderMesh
 var preview: MeshInstance3D
 var preview_mat: StandardMaterial3D
 var hud: Label
+var crosshair: Label
 
 
 func _ready() -> void:
@@ -87,6 +86,7 @@ func _ready() -> void:
 	hud.add_theme_font_size_override("font_size", 22)
 	layer.add_child(hud)
 	var cross := Label.new()
+	crosshair = cross
 	cross.text = "+"
 	cross.custom_minimum_size = Vector2(40, 40)
 	cross.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -99,7 +99,7 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.5, 1.5)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity * (-1.0 if bool(SettingsManager.get_value("invert_y")) else 1.0), -1.5, 1.5)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_1:
@@ -108,28 +108,23 @@ func _unhandled_input(event: InputEvent) -> void:
 				selected_tier = 1
 			KEY_3:
 				selected_tier = 2
-			KEY_E:
-				place_mode = not place_mode
-			KEY_ESCAPE:
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			KEY_R:
-				get_tree().reload_current_scene()
+				UIManager.request_restart()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		elif place_mode:
+		else:
 			try_place()
 
 
 func _physics_process(delta: float) -> void:
+	if health <= 0:
+		return
 	cooldown_left = maxf(cooldown_left - delta, 0.0)
 	hit_timer = maxf(hit_timer - delta, 0.0)
 
 	if not is_on_floor():
-		var applied_gravity := gravity
-		if velocity.y < 0.0:
-			applied_gravity = fall_gravity
-		velocity.y = maxf(velocity.y - applied_gravity * delta, -40.0)
+		velocity.y = maxf(velocity.y - gravity * delta, -40.0)
 
 		var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 		horizontal *= maxf(0.0, 1.0 - air_drag * delta)
@@ -162,8 +157,7 @@ func _physics_process(delta: float) -> void:
 	var fall_speed := velocity.y
 	move_and_slide()
 
-	if launched:
-		_check_slam(fall_speed)
+	_check_slam(fall_speed)
 
 	if launched and is_on_floor() and velocity.y <= 0.0:
 		launched = false
@@ -183,6 +177,8 @@ func register_trampoline_bounce(trampoline: Node) -> float:
 
 
 func take_damage(amount: int, attacker: Node = null) -> void:
+	if get_tree().paused:
+		return
 	if hit_timer > 0.0 or health <= 0 or amount <= 0:
 		return
 	if attacker != null and attacker.has_meta("stomped_frame"):
@@ -193,6 +189,7 @@ func take_damage(amount: int, attacker: Node = null) -> void:
 	health_changed.emit(health)
 	_show_damage_flash()
 	if health <= 0:
+		velocity = Vector3.ZERO
 		died.emit()
 
 
@@ -201,7 +198,9 @@ func _check_slam(fall_speed: float) -> void:
 		return
 	for index in get_slide_collision_count():
 		var collision := get_slide_collision(index)
-		if collision.get_normal().y > 0.2:
+		var collider: Node = collision.get_collider() as Node
+		var enemy_contact: bool = collider != null and collider.is_in_group("enemy")
+		if collision.get_normal().y > 0.65 and (launched or enemy_contact):
 			_slam_impact()
 			return
 
@@ -209,11 +208,18 @@ func _check_slam(fall_speed: float) -> void:
 func _slam_impact() -> void:
 	slammed = true
 	var origin := global_position
+	var hit_enemy := false
 	for enemy in get_tree().get_nodes_in_group("enemy"):
 		var flat := Vector2(enemy.global_position.x - origin.x, enemy.global_position.z - origin.z).length()
 		if flat <= slam_radius and absf(enemy.global_position.y - origin.y) < 2.5 and enemy.has_method("squish"):
 			enemy.set_meta("stomped_frame", Engine.get_physics_frames())
-			enemy.squish(stomp_damage)
+			if not enemy.dead:
+				enemy.squish(stomp_damage)
+				hit_enemy = true
+	if hit_enemy:
+		velocity.y = rebound_speed
+		launched = true
+		slammed = false
 	_spawn_shockwave(origin)
 	stomped.emit()
 
@@ -262,7 +268,9 @@ func _is_valid(hit: Dictionary) -> bool:
 
 func _update_preview() -> void:
 	preview.visible = false
-	if not place_mode:
+	if not bool(SettingsManager.get_value("placement_preview")):
+		return
+	if health <= 0 or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	var hit := _aim()
 	if not _is_valid(hit):
@@ -280,7 +288,6 @@ func try_place() -> void:
 		return
 	_spawn_trampoline(hit.position)
 	cooldown_left = trampoline_cooldowns[selected_tier]
-	place_mode = false
 
 
 func _spawn_trampoline(pos: Vector3) -> void:
@@ -344,24 +351,27 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 
 
 func _update_hud() -> void:
-	var status := "%s trampoline ready (E)" % TIER_NAMES[selected_tier] if cooldown_left <= 0.0 else "%s trampoline in %.1fs" % [TIER_NAMES[selected_tier], cooldown_left]
+	var status := "%s trampoline ready (left click)" % TIER_NAMES[selected_tier] if cooldown_left <= 0.0 else "%s trampoline in %.1fs" % [TIER_NAMES[selected_tier], cooldown_left]
 	if place_mode:
 		status = "PLACE MODE: click to place   |   " + status
 	hud.text = "HP: %d / %d
 Tier: %s
 %s
-WASD move | Shift sprint | Space jump | 1/2/3 tier | E place | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
+WASD move | Shift sprint | Space jump | 1/2/3 tier | Left click place | Esc pause | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
 
 
 func _update_fov(delta: float, sprinting: bool) -> void:
 	var jump_fov := 0.0
 	if not is_on_floor():
 		jump_fov = clampf((absf(velocity.y) - 4.0) * 0.7, 0.0, 16.0)
-	var target_fov := base_fov + (15.0 if sprinting else 0.0) + jump_fov
+	var effect_strength: float = float(SettingsManager.get_value("fov_strength")) if bool(SettingsManager.get_value("dynamic_fov")) and not bool(SettingsManager.get_value("reduced_motion")) else 0.0
+	var target_fov := base_fov + ((15.0 if sprinting else 0.0) + jump_fov) * effect_strength
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-10.0 * delta))
 
 
 func _show_damage_flash() -> void:
+	if not bool(SettingsManager.get_value("damage_flash")) or bool(SettingsManager.get_value("reduced_flashing")):
+		return
 	var flash := ColorRect.new()
 	flash.color = Color(1.0, 0.2, 0.2, 0.35)
 	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

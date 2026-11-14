@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Rebound"
-run/main_scene="uid://brkywcw4q7i8e"
+run/main_scene="res://UI/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -31,3 +31,8 @@ window/stretch/aspect="expand"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[autoload]
+
+SettingsManager="*res://UI/settings_store.gd"
+UIManager="*res://UI/ui_manager.gd"

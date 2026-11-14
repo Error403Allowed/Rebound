@@ -40,9 +40,12 @@ var results: PanelContainer
 var results_title: Label
 var results_stats: Label
 var restart_button: Button
+var resume_button: Button
+var pause_active := false
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	break_timer = first_wave_delay
 	_build_hud()
 	player = get_tree().get_first_node_in_group("player")
@@ -51,7 +54,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if game_over:
+	if game_over or get_tree().paused:
 		return
 	if in_break:
 		break_timer -= delta
@@ -129,8 +132,8 @@ func _spawn_enemy() -> void:
 	if player == null:
 		player = get_tree().get_first_node_in_group("player")
 	var enemy := Enemy.new()
-	enemy.type = _pick_type()
-	enemy.role = _pick_role()
+	enemy.type = _pick_type() as Enemy.Type
+	enemy.role = _pick_role() as Enemy.Role
 	enemy.health = 1 + mini(3, int(wave / 6.0))
 	enemy.died.connect(_on_enemy_died)
 	add_child(enemy)
@@ -146,19 +149,26 @@ func _on_enemy_died(_enemy_type: int) -> void:
 
 func _on_player_died() -> void:
 	game_over = true
+	pause_active = false
+	get_tree().paused = true
+	resume_button.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "GAME OVER"
 	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun coins: %d\n\nRun coins are not saved yet." % [score, wave, kills, currency]
 	results.show()
 	restart_button.grab_focus()
+	results.hide()
+	UIManager.show_results()
 
 
 func _restart() -> void:
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 
 	info = Label.new()
 	info.custom_minimum_size = Vector2(700, 34)
@@ -201,10 +211,20 @@ func _build_hud() -> void:
 	results_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(results_stats)
 
+	resume_button = Button.new()
+	resume_button.text = "Resume"
+	resume_button.pressed.connect(_resume)
+	box.add_child(resume_button)
+
 	restart_button = Button.new()
 	restart_button.text = "Play Again"
 	restart_button.pressed.connect(_restart)
 	box.add_child(restart_button)
+
+	var quit_button := Button.new()
+	quit_button.text = "Quit to desktop"
+	quit_button.pressed.connect(func(): get_tree().quit())
+	box.add_child(quit_button)
 
 	add_child(layer)
 
@@ -224,3 +244,41 @@ func _show_banner(text: String) -> void:
 	banner_tween = create_tween()
 	banner_tween.tween_interval(1.2)
 	banner_tween.tween_property(banner, "modulate:a", 0.0, 0.8)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_ESCAPE:
+			get_viewport().set_input_as_handled()
+			if game_over:
+				return
+			if pause_active:
+				_resume()
+			else:
+				_pause()
+		elif event.physical_keycode == KEY_R:
+			get_viewport().set_input_as_handled()
+			UIManager.request_restart()
+
+
+func _pause() -> void:
+	pause_active = true
+	get_tree().paused = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	results_title.text = "PAUSED"
+	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run coins: %d" % [score, wave, kills, currency]
+	resume_button.show()
+	results.show()
+	resume_button.grab_focus()
+	results.hide()
+	UIManager.show_pause()
+
+
+func _resume() -> void:
+	if game_over:
+		return
+	pause_active = false
+	results.hide()
+	get_tree().paused = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	UIManager.show_game()
