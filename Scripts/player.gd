@@ -11,6 +11,8 @@ extends CharacterBody3D
 
 var gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity"))
 var _jump_was_held: bool = false
+var last_trampoline: Node = null
+var consecutive_bounces: int = 0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -19,6 +21,14 @@ var _base_fov: float = 0.0
 func _ready() -> void:
 	_base_fov = camera.fov
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func register_trampoline_bounce(trampoline: Node) -> float:
+	if trampoline == last_trampoline:
+		consecutive_bounces += 1
+	else:
+		consecutive_bounces = 0
+	last_trampoline = trampoline
+	return minf(consecutive_bounces * 1.5, 8.0)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -66,7 +76,10 @@ func _physics_process(delta: float) -> void:
 	var sprinting: bool = controls_active and Input.is_physical_key_pressed(KEY_SHIFT) and input_dir.y < 0.0
 	if sprinting:
 		current_speed = sprint_speed
-	var target_fov: float = _base_fov + (15.0 if sprinting else 0.0)
+	var jump_fov: float = 0.0
+	if not grounded:
+		jump_fov = clampf((absf(velocity.y) - 4.0) * 0.7, 0.0, 16.0)
+	var target_fov: float = _base_fov + (15.0 if sprinting else 0.0) + jump_fov
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-10.0 * delta))
 
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)

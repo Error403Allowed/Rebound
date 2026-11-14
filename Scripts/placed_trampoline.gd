@@ -1,7 +1,9 @@
 extends "res://Scripts/trampoline.gd"
 
 const COLORS = [Color(0.2, 0.9, 0.4), Color(0.2, 0.5, 1.0), Color(0.7, 0.3, 1.0)]
-const SPEEDS = [12.0, 15.0, 20.0]
+const SPEEDS = [9.0, 11.0, 14.0]
+const BOUNCE_INCREMENT: float = 1.5
+const MAX_BOUNCE_BONUS: float = 8.0
 const LAUNCH_CHARGES = [4, 3, 2]
 @export_range(0, 2) var strength: int = 0
 var charges: int = 0
@@ -33,6 +35,10 @@ func _on_body_entered(body: Node3D) -> void:
 	var character := body as CharacterBody3D
 	if character == null or character.velocity.y > 0.0:
 		return
+	var bounce_bonus: float = 0.0
+	if character.has_method("register_trampoline_bounce"):
+		bounce_bonus = character.register_trampoline_bounce(self)
+	standard_launch_velocity = minf(SPEEDS[strength] + bounce_bonus, SPEEDS[strength] + MAX_BOUNCE_BONUS)
 	super._on_body_entered(body)
 	charges = maxi(0, charges - 1)
 	_update_charges()
