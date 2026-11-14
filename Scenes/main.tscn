@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://brkywcw4q7i8e"]
+
+[ext_resource type="PackedScene" uid="uid://w0aspmdv1nou" path="res://Scenes/player.tscn" id="1_jjgbg"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jjgbg"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_bo1nx"]
+sky_material = SubResource("ProceduralSkyMaterial_jjgbg")
+
+[sub_resource type="Environment" id="Environment_8gbba"]
+background_mode = 2
+sky = SubResource("Sky_bo1nx")
+glow_enabled = true
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_xgh8v"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_p1qig"]
+size = Vector2(40, 40)
+orientation = 1
+
+[node name="Main" type="Node3D" unique_id=474837367]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=532265938]
+environment = SubResource("Environment_8gbba")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2069006142]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 5.4904556, 0)
+shadow_enabled = true
+
+[node name="WorldFloor" type="StaticBody3D" parent="." unique_id=200740441]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WorldFloor" unique_id=398740079]
+shape = SubResource("WorldBoundaryShape3D_xgh8v")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WorldFloor" unique_id=1201532697]
+mesh = SubResource("QuadMesh_p1qig")
+
+[node name="Player" parent="." unique_id=2081837301 instance=ExtResource("1_jjgbg")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="CSGCombiner3D" type="CSGCombiner3D" parent="." unique_id=1442076115]
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGCombiner3D" unique_id=1248251779]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8234777, 0.39434814, -0.94091797)
+size = Vector3(6.416992, 1.7886963, 5.5322266)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGCombiner3D" unique_id=414272572]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.181084, 1.0658875, -1.0850737)
+size = Vector3(6.416992, 2.3430786, 5.5322266)
