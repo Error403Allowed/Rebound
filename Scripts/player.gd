@@ -7,7 +7,8 @@ extends CharacterBody3D
 @export var max_fall_speed: float = 40.0
 @export var mouse_sensitivity: float = 0.002
 @export var ground_acceleration: float = 50.0
-@export var air_acceleration: float = 15.0
+@export var air_acceleration: float = 6.0
+@export var air_drag: float = 2.5
 
 var gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity"))
 var _jump_was_held: bool = false
@@ -85,12 +86,15 @@ func _physics_process(delta: float) -> void:
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	if grounded:
 		horizontal = horizontal.move_toward(direction * current_speed, ground_acceleration * delta)
-	elif direction != Vector3.ZERO:
-		# Steering adds velocity only up to the desired speed along this direction.
-		# Existing trampoline momentum is not clamped to walking speed.
-		var available_speed: float = current_speed - horizontal.dot(direction)
-		if available_speed > 0.0:
-			horizontal += direction * minf(air_acceleration * delta, available_speed)
+	else:
+		# Air resistance slows existing horizontal momentum before steering is applied.
+		horizontal *= maxf(0.0, 1.0 - air_drag * delta)
+		if direction != Vector3.ZERO:
+			# Steering adds velocity only up to the desired speed along this direction.
+			# Existing trampoline momentum is not clamped to walking speed.
+			var available_speed: float = current_speed - horizontal.dot(direction)
+			if available_speed > 0.0:
+				horizontal += direction * minf(air_acceleration * delta, available_speed)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 	move_and_slide()
