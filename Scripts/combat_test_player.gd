@@ -53,5 +53,10 @@ func take_damage(amount: int) -> void:
 		died.emit()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not dead:
-		super._unhandled_input(event)
+	if dead:
+		return
+	var placement: Node = get_node_or_null("TrampolinePlacement")
+	if placement != null and placement.handle_event(event):
+		get_viewport().set_input_as_handled()
+		return
+	super._unhandled_input(event)

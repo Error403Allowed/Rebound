@@ -42,18 +42,10 @@ func _ready() -> void:
 	_box(enemy, Vector3.ZERO, box.size, Color(0.9, 0.25, 0.2), false)
 	enemy.position = Vector3(0, 0.85, -5)
 	add_child(enemy)
-	var pad := Area3D.new()
-	pad.position = Vector3(0, 0.2, 1)
-	pad.collision_layer = 0
-	pad.collision_mask = 2
-	var pad_shape := CollisionShape3D.new()
-	var volume := BoxShape3D.new()
-	volume.size = Vector3(4, 0.4, 4)
-	pad_shape.shape = volume
-	pad.add_child(pad_shape)
-	_box(pad, Vector3.ZERO, Vector3(4, 0.15, 4), Color(0.15, 0.9, 0.65), false)
-	pad.body_entered.connect(_bounce)
-	add_child(pad)
+	var placement := Node3D.new()
+	placement.name = "TrampolinePlacement"
+	placement.set_script(preload("res://Scripts/trampoline_placement.gd"))
+	player.add_child(placement)
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	status = Label.new()
@@ -62,7 +54,7 @@ func _ready() -> void:
 	canvas.add_child(status)
 	feedback = Label.new()
 	feedback.position = Vector2(24, 64)
-	feedback.text = "WASD move | Shift sprint | Space jump | R restart | Esc release mouse\nGreen pad launches you. Descend onto the red enemy to stomp."
+	feedback.text = "WASD move | Shift sprint | Space jump | R restart | Esc release mouse\nAim at ground and left click to place. Descend onto the enemy to stomp."
 	canvas.add_child(feedback)
 	player.health_changed.connect(_health_changed)
 	player.died.connect(_player_died)
@@ -92,16 +84,12 @@ func _box(parent: Node, position: Vector3, size: Vector3, color: Color, solid: b
 		visual.position = position
 	holder.add_child(visual)
 
-func _bounce(body: Node3D) -> void:
-	if body == player and not player.dead and player.velocity.y <= 0.0:
-		player.velocity.y = 18.0
-
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_R:
 		get_tree().reload_current_scene()
 
 func _health_changed(value: int) -> void:
-	status.text = "STAGE 1 COMBAT TEST | Health: %d / %d" % [value, player.max_health]
+	status.text = "STAGE 2 PLACEMENT TEST | Health: %d / %d" % [value, player.max_health]
 
 func _player_died() -> void:
 	feedback.text = "DEFEATED — Press R to restart."
