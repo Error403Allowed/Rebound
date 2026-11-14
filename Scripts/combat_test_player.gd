@@ -1,4 +1,4 @@
-extends "res://Scenes/player.gd"
+extends "res://Scripts/player.gd"
 
 signal health_changed(current: int)
 signal died
