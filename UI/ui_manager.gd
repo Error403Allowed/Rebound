@@ -88,7 +88,7 @@ func _clear() -> void:
 		child.queue_free()
 	hud = null
 
-func _page(title: String, subtitle: String) -> void:
+func _page(title: String, subtitle: String = "") -> void:
 	_clear()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var shade := ColorRect.new()
@@ -137,7 +137,8 @@ func _page(title: String, subtitle: String) -> void:
 		scroll.add_child(content)
 	_label(content, "Rebound / " + screen.replace("_", " ").capitalize(), 16).modulate = Color(0.48, 0.85, 0.75)
 	_label(content, title, 48).modulate = Color.WHITE if screen == "title" else Color(0.85, 0.77, 0.6)
-	_label(content, subtitle, 20).modulate = Color(0.7, 0.78, 0.86)
+	if not subtitle.is_empty():
+		_label(content, subtitle, 20).modulate = Color(0.7, 0.78, 0.86)
 	var rule := HSeparator.new()
 	var line := StyleBoxLine.new()
 	line.color = Color(0.3, 0.65, 0.72, 0.6)
@@ -177,7 +178,7 @@ func _focus_first() -> void:
 func show_title() -> void:
 	screen = "title"
 	get_tree().paused = false
-	_page("REBOUND", "Survival")
+	_page("REBOUND")
 	_button(content, "START SURVIVAL", start_run)
 	_button(content, "UPGRADES", func(): show_shop("title"))
 	_button(content, "HOW TO PLAY", func(): open_help("title"))
