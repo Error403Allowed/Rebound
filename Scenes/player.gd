@@ -4,8 +4,8 @@ extends CharacterBody3D
 @export var sprint_speed: float = 7.5
 @export var jump_velocity: float = 4.5
 @export var mouse_sensitivity: float = 0.002
-@export var ground_acceleration: float = 35.0
-@export var air_acceleration: float = 6.0
+@export var ground_acceleration: float = 50.0
+@export var air_acceleration: float = 15.0
 
 var gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity"))
 var _jump_was_held: bool = false
