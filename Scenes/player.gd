@@ -1,79 +1,245 @@
 extends CharacterBody3D
 
-@export var speed: float = 5.0
-@export var sprint_speed: float = 7.5
-@export var jump_velocity: float = 4.5
-@export var mouse_sensitivity: float = 0.002
-@export var ground_acceleration: float = 50.0
-@export var air_acceleration: float = 15.0
+@export_group("Movement")
+@export var move_speed := 11.0
+@export var ground_accel := 90.0
+@export var air_accel := 20.0
+@export var jump_speed := 8.0
+@export var gravity := 22.0
+@export var fall_multiplier := 1.4
+@export var mouse_sensitivity := 0.0025
 
-var gravity: float = float(ProjectSettings.get_setting("physics/3d/default_gravity"))
-var _jump_was_held: bool = false
+@export_group("Trampoline")
+@export var launch_speed := 24.0
+@export var slam_multiplier := 2.5
+@export var max_fall_speed := 60.0
+@export var place_range := 10.0
+@export var place_cooldown := 5.0
+@export var tramp_radius := 1.5
+@export var world_size := 65.0           # must match the World script
+
+@export_group("Combat")
+@export var max_health := 100
+@export var stomp_damage := 1
+@export var hit_invulnerability := 0.4   # seconds of protection after being hit
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
-var _base_fov: float = 0.0
+
+const TRAMP_HEIGHT := 0.3
+
+var place_mode := false
+var cooldown_left := 0.0
+var launched := false
+var health := 100
+var hit_timer := 0.0
+var stomped: Array = []                  # enemies already hit during this slam
+
+var tramp_mesh: CylinderMesh
+var preview: MeshInstance3D
+var preview_mat: StandardMaterial3D
+var stomp_zone: Area3D
+var hud: Label
+
 
 func _ready() -> void:
-	_base_fov = camera.fov
+	add_to_group("player")
+	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
+	tramp_mesh = CylinderMesh.new()
+	tramp_mesh.top_radius = tramp_radius
+	tramp_mesh.bottom_radius = tramp_radius
+	tramp_mesh.height = TRAMP_HEIGHT
+	tramp_mesh.radial_segments = 16
+	tramp_mesh.rings = 1
+	var tramp_mat := StandardMaterial3D.new()
+	tramp_mat.albedo_color = Color(1.0, 0.45, 0.1)
+	tramp_mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	tramp_mesh.material = tramp_mat
+
+	preview_mat = StandardMaterial3D.new()
+	preview_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	preview_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	preview = MeshInstance3D.new()
+	preview.mesh = tramp_mesh
+	preview.material_override = preview_mat
+	preview.top_level = true
+	preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	preview.visible = false
+	add_child(preview)
+
+	stomp_zone = Area3D.new()
+	var zone_shape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 1.0
+	zone_shape.shape = sphere
+	stomp_zone.add_child(zone_shape)
+	stomp_zone.position = Vector3(0, 0.3, 0)
+	add_child(stomp_zone)
+
+	var layer := CanvasLayer.new()
+	hud = Label.new()
+	hud.position = Vector2(20, 20)
+	layer.add_child(hud)
+	var cross := Label.new()
+	cross.text = "+"
+	cross.custom_minimum_size = Vector2(40, 40)
+	cross.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cross.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cross.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	layer.add_child(cross)
+	add_child(layer)
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		return
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotation.x = clampf(
-			head.rotation.x - event.relative.y * mouse_sensitivity,
-			deg_to_rad(-89.0), deg_to_rad(89.0)
-		)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * mouse_sensitivity, -1.5, 1.5)
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_E:
+			place_mode = not place_mode
+		elif event.physical_keycode == KEY_ESCAPE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		elif place_mode:
+			try_place()
+
 
 func _physics_process(delta: float) -> void:
-	var controls_active: bool = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	var grounded: bool = is_on_floor() and velocity.y <= 0.0
-	if not grounded:
-		velocity.y -= gravity * delta
+	cooldown_left = maxf(cooldown_left - delta, 0.0)
+	hit_timer = maxf(hit_timer - delta, 0.0)
 
-	var jump_held: bool = Input.is_physical_key_pressed(KEY_SPACE)
-	if controls_active and jump_held and not _jump_was_held and grounded:
-		velocity.y = jump_velocity
-	_jump_was_held = jump_held
+	if not is_on_floor():
+		var g := gravity
+		if velocity.y < 0.0:
+			g *= slam_multiplier if launched else fall_multiplier
+		velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
 
-	var input_dir := Vector2.ZERO
-	if controls_active:
-		if Input.is_physical_key_pressed(KEY_W):
-			input_dir.y -= 1.0
-		if Input.is_physical_key_pressed(KEY_S):
-			input_dir.y += 1.0
-		if Input.is_physical_key_pressed(KEY_A):
-			input_dir.x -= 1.0
-		if Input.is_physical_key_pressed(KEY_D):
-			input_dir.x += 1.0
-	input_dir = input_dir.normalized()
+	if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
+		velocity.y = jump_speed
 
-	var direction: Vector3 = global_transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)
-	direction.y = 0.0
-	direction = direction.normalized()
-	var current_speed: float = speed
-	var sprinting: bool = controls_active and Input.is_physical_key_pressed(KEY_SHIFT) and input_dir.y < 0.0
-	if sprinting:
-		current_speed = sprint_speed
-	var target_fov: float = _base_fov + (15.0 if sprinting else 0.0)
-	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-10.0 * delta))
+	var input := Vector2.ZERO
+	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
+	if Input.is_physical_key_pressed(KEY_S): input.y += 1.0
+	if Input.is_physical_key_pressed(KEY_A): input.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D): input.x += 1.0
+	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 
-	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	if grounded:
-		horizontal = horizontal.move_toward(direction * current_speed, ground_acceleration * delta)
-	elif direction != Vector3.ZERO:
-		# Steering adds velocity only up to the desired speed along this direction.
-		# Existing trampoline momentum is not clamped to walking speed.
-		var available_speed: float = current_speed - horizontal.dot(direction)
-		if available_speed > 0.0:
-			horizontal += direction * minf(air_acceleration * delta, available_speed)
-	velocity.x = horizontal.x
-	velocity.z = horizontal.z
+	var accel := ground_accel if is_on_floor() else air_accel
+	velocity.x = move_toward(velocity.x, dir.x * move_speed, accel * delta)
+	velocity.z = move_toward(velocity.z, dir.z * move_speed, accel * delta)
+
+	if launched:
+		_stomp_check()
+
 	move_and_slide()
+
+	if launched and is_on_floor() and velocity.y <= 0.0:
+		launched = false
+		stomped.clear()
+
+	_update_preview()
+	_update_hud()
+
+
+# ---------- combat ----------
+
+func take_damage(amount: int) -> void:
+	if hit_timer > 0.0 or health <= 0:
+		return
+	health -= amount
+	hit_timer = hit_invulnerability
+	if health <= 0:
+		get_tree().call_deferred("reload_current_scene")   # placeholder: restart on death
+
+
+func _stomp_check() -> void:
+	if velocity.y > -3.0:                    # only while actually falling
+		return
+	for body in stomp_zone.get_overlapping_bodies():
+		if body in stomped:
+			continue
+		if body.is_in_group("enemy") and body.has_method("squish"):
+			stomped.append(body)
+			body.squish(stomp_damage)
+
+
+# ---------- trampoline ----------
+
+func _aim() -> Dictionary:
+	var from := camera.global_position
+	var to := from - camera.global_transform.basis.z * place_range
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query)
+
+
+func _is_valid(hit: Dictionary) -> bool:
+	if hit.is_empty() or hit.normal.y < 0.7:
+		return false
+	var limit := world_size / 2.0 - tramp_radius
+	return absf(hit.position.x) <= limit and absf(hit.position.z) <= limit
+
+
+func _update_preview() -> void:
+	preview.visible = false
+	if not place_mode:
+		return
+	var hit := _aim()
+	if not _is_valid(hit):
+		return
+	preview.visible = true
+	preview.global_position = hit.position + Vector3(0, TRAMP_HEIGHT / 2.0, 0)
+	preview_mat.albedo_color = Color(0.2, 1.0, 0.3, 0.5) if cooldown_left <= 0.0 else Color(1.0, 0.2, 0.2, 0.5)
+
+
+func try_place() -> void:
+	if cooldown_left > 0.0:
+		return
+	var hit := _aim()
+	if not _is_valid(hit):
+		return
+	_spawn_trampoline(hit.position)
+	cooldown_left = place_cooldown
+	place_mode = false
+
+
+func _spawn_trampoline(pos: Vector3) -> void:
+	var area := Area3D.new()
+
+	var visual := MeshInstance3D.new()
+	visual.mesh = tramp_mesh
+	visual.position.y = TRAMP_HEIGHT / 2.0
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	area.add_child(visual)
+
+	var col := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = tramp_radius
+	shape.height = 0.8
+	col.shape = shape
+	col.position.y = 0.4
+	area.add_child(col)
+
+	area.body_entered.connect(_on_tramp_entered.bind(area))
+	get_tree().current_scene.add_child(area)
+	area.global_position = pos
+
+
+func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
+	if body != self or area.is_queued_for_deletion():
+		return
+	velocity.y = launch_speed
+	launched = true
+	stomped.clear()
+	area.queue_free()
+
+
+func _update_hud() -> void:
+	var status := "Trampoline ready (E)" if cooldown_left <= 0.0 else "Trampoline in %.1fs" % cooldown_left
+	if place_mode:
+		status = "PLACE MODE: click to place   |   " + status
+	hud.text = "HP: %d / %d\n%s" % [health, max_health, status]
