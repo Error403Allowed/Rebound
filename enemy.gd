@@ -4,26 +4,39 @@ extends CharacterBody3D
 signal died(enemy_type: int)
 
 enum Type { BASIC, SPEEDY }
+enum Role { CHASER, DODGER, FLANKER, CHARGER }
 
-# one row per enemy type, so adding a third type is just another entry
 const STATS := {
-	Type.BASIC:  {"health": 1, "speed": 3.5, "damage": 10, "size": 1.0, "color": Color(0.25, 0.8, 0.25)},
+	Type.BASIC: {"health": 1, "speed": 3.5, "damage": 10, "size": 1.0, "color": Color(0.25, 0.8, 0.25)},
 	Type.SPEEDY: {"health": 1, "speed": 6.5, "damage": 15, "size": 0.8, "color": Color(0.95, 0.75, 0.1)},
 }
+const ROLE_NAMES := ["CHASER", "DODGER", "FLANKER", "CHARGER"]
+const ROLE_COLORS := [Color(0.9, 0.25, 0.2), Color(0.95, 0.6, 0.15), Color(0.9, 0.3, 0.65), Color(0.65, 0.3, 0.95)]
 
 @export var type: Type = Type.BASIC
+@export var role: Role = Role.CHASER
 @export var gravity := 22.0
-@export var attack_range := 1.2        # horizontal distance at which it hits you
-@export var attack_cooldown := 1.0     # seconds between hits
+@export var attack_range := 1.35
+@export var attack_cooldown := 1.0
 
 var health := 1
 var speed := 3.5
 var damage := 10
 var dead := false
 var attack_timer := 0.0
+var ability_cooldown := 0.0
+var action := ""
+var action_time := 0.0
+var committed := Vector3.ZERO
+var orbit_sign := 1.0
+var telegraph := false
+var tracking_descent := false
+var reacted := false
+var reaction_time := 0.0
 var player
 var mesh: MeshInstance3D
 var collision: CollisionShape3D
+var material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -32,20 +45,20 @@ func _ready() -> void:
 	speed = stats["speed"]
 	damage = stats["damage"]
 	var size: float = stats["size"]
-
+	orbit_sign = -1.0 if randf() < 0.5 else 1.0
+	ability_cooldown = randf_range(1.0, 3.0)
 	add_to_group("enemy")
 	player = get_tree().get_first_node_in_group("player")
 
-	# squashed sphere body
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.5 * size
 	sphere.height = 0.8 * size
 	sphere.radial_segments = 12
 	sphere.rings = 6
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = stats["color"]
-	mat.roughness = 0.4
-	sphere.material = mat
+	material = StandardMaterial3D.new()
+	material.albedo_color = ROLE_COLORS[role]
+	material.roughness = 0.4
+	sphere.material = material
 	mesh = MeshInstance3D.new()
 	mesh.mesh = sphere
 	mesh.position.y = 0.4 * size
@@ -59,32 +72,116 @@ func _ready() -> void:
 	collision.position.y = 0.45 * size
 	add_child(collision)
 
+	var label := Label3D.new()
+	label.position.y = 1.1 * size + 0.35
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 34
+	label.pixel_size = 0.006
+	label.text = ROLE_NAMES[role]
+	add_child(label)
+
 
 func _physics_process(delta: float) -> void:
 	if dead or player == null:
 		return
+	ability_cooldown = maxf(0.0, ability_cooldown - delta)
+	attack_timer = maxf(0.0, attack_timer - delta)
+
+	var offset: Vector3 = player.global_position - global_position
+	var flat_distance := Vector2(offset.x, offset.z).length()
+	var toward := Vector3(offset.x, 0.0, offset.z).normalized() if flat_distance > 0.1 else Vector3.FORWARD
+	var side := Vector3(-toward.z, 0.0, toward.x) * orbit_sign
+	var direction := toward
+	var movement_speed := speed
+	var airborne := offset.y > 1.6
+	var falling: bool = airborne and player.velocity.y < -2.0
+
+	if not falling:
+		tracking_descent = false
+		reacted = false
+		reaction_time = 0.0
+
+	if role == Role.DODGER and falling and not reacted and action.is_empty():
+		var time_to_contact := clampf((offset.y - 1.8) / maxf(-player.velocity.y, 0.1), 0.0, 1.0)
+		var predicted: Vector3 = player.global_position + player.velocity * time_to_contact
+		var threat := Vector2(predicted.x - global_position.x, predicted.z - global_position.z).length()
+		if threat < 3.2 and ability_cooldown <= 0.0:
+			tracking_descent = true
+		if tracking_descent:
+			reaction_time += delta
+			telegraph = true
+			if reaction_time >= 0.4:
+				reacted = true
+				action = "dodge"
+				action_time = 0.3
+				committed = side
+				ability_cooldown = 3.5
+
+	if role == Role.CHARGER and action.is_empty() and ability_cooldown <= 0.0 and not airborne and flat_distance > 3.0 and flat_distance < 12.0:
+		action = "windup"
+		action_time = 0.65
+		committed = toward
+		telegraph = true
+
+	if not action.is_empty():
+		action_time -= delta
+		match action:
+			"windup":
+				direction = side
+				movement_speed = speed * 0.35
+			"charge":
+				direction = committed
+				movement_speed = speed * 2.7
+			"dodge":
+				direction = committed
+				movement_speed = speed * 2.0
+			"recover":
+				direction = side
+				movement_speed = speed * 0.45
+		if action_time <= 0.0:
+			if action == "windup":
+				action = "charge"
+				action_time = 0.6
+			elif action == "charge" or action == "dodge":
+				action = "recover"
+				action_time = 0.7
+				telegraph = false
+			else:
+				action = ""
+				ability_cooldown = maxf(ability_cooldown, 3.0)
+	else:
+		if role == Role.FLANKER and flat_distance > 2.0:
+			direction = (toward + side * 0.85).normalized()
+		elif flat_distance < 1.0:
+			direction = side
+		var separation := Vector3.ZERO
+		for other in get_tree().get_nodes_in_group("enemy"):
+			if other == self or not is_instance_valid(other):
+				continue
+			var away: Vector3 = global_position - other.global_position
+			away.y = 0.0
+			var distance := away.length()
+			if distance > 0.01 and distance < 2.0:
+				separation += away.normalized() * (2.0 - distance)
+		direction = (direction + separation * 0.7).normalized()
+
+	var proposed := global_position + direction * movement_speed * delta
+	if absf(proposed.x) > 31.0:
+		direction.x = -signf(global_position.x)
+	if absf(proposed.z) > 31.0:
+		direction.z = -signf(global_position.z)
+	velocity.x = direction.x * movement_speed
+	velocity.z = direction.z * movement_speed
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-
-	# walk straight at the player
-	var to_player: Vector3 = player.global_position - global_position
-	to_player.y = 0.0
-	var flat := to_player.length()
-	var dir := to_player / flat if flat > 0.01 else Vector3.ZERO
-	velocity.x = dir.x * speed
-	velocity.z = dir.z * speed
 	move_and_slide()
 
-	# little jelly wobble
 	mesh.scale.y = 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.01 + get_instance_id())
+	material.albedo_color = Color(1.0, 0.95, 0.4) if telegraph else ROLE_COLORS[role]
 
-	# contact damage (the player is safe while launched, since slamming is their attack)
-	attack_timer = maxf(attack_timer - delta, 0.0)
-	if attack_timer <= 0.0 and flat <= attack_range \
-			and absf(player.global_position.y - global_position.y) < 1.6 \
-			and not player.launched:
-		player.take_damage(damage)
+	if attack_timer <= 0.0 and flat_distance <= attack_range and absf(player.global_position.y - global_position.y) < 1.8 and not player.launched:
+		player.take_damage(damage, self)
 		attack_timer = attack_cooldown
 
 

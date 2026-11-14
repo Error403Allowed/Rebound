@@ -1,24 +1,31 @@
 extends Node
 
 @export var enemy_scene: PackedScene
-@export var world_size := 65.0              # must match the World script
+@export var world_size := 65.0
 
 @export_group("Waves")
 @export var first_wave_delay := 5.0
 @export var time_between_waves := 6.0
-@export var base_count := 5                 # enemies in wave 1 is base_count + count_per_wave
+@export var base_count := 5
 @export var count_per_wave := 3
-@export var max_alive := 25                 # cap on enemies at once, protects your fps
-@export var heal_between_waves := 0         # HP restored when a wave is cleared (0 = none)
+@export var max_alive := 25
+@export var heal_between_waves := 0
 
 @export_group("Spawning")
-@export var spawn_edge_inset := 2.0         # how far inside the walls enemies appear
-@export var min_spawn_distance := 20.0      # never spawn closer to the player than this
+@export var spawn_edge_inset := 2.0
+@export var min_spawn_distance := 8.0
+@export var score_per_kill := 10
+@export var coins_per_kill := 1
+@export var score_per_wave := 100
+@export var coins_per_wave := 5
 
 var wave := 0
-var to_spawn := 0                           # enemies still waiting to spawn this wave
+var to_spawn := 0
 var alive := 0
 var kills := 0
+var score := 0
+var currency := 0
+var game_over := false
 var in_break := true
 var break_timer := 0.0
 var spawn_timer := 0.0
@@ -29,14 +36,23 @@ var player: Node3D
 var info: Label
 var banner: Label
 var banner_tween: Tween
+var results: PanelContainer
+var results_title: Label
+var results_stats: Label
+var restart_button: Button
 
 
 func _ready() -> void:
 	break_timer = first_wave_delay
 	_build_hud()
+	player = get_tree().get_first_node_in_group("player")
+	if player != null and player.has_signal("died"):
+		player.died.connect(_on_player_died)
 
 
 func _process(delta: float) -> void:
+	if game_over:
+		return
 	if in_break:
 		break_timer -= delta
 		if break_timer <= 0.0:
@@ -54,14 +70,12 @@ func _process(delta: float) -> void:
 	_update_hud()
 
 
-# ---------- waves ----------
-
 func _start_wave() -> void:
 	wave += 1
 	in_break = false
 	to_spawn = base_count + wave * count_per_wave
-	spawn_interval = maxf(0.25, 1.2 - wave * 0.08)     # spawns get quicker each wave
-	speedy_chance = clampf((wave - 1) * 0.1, 0.0, 0.5) # speedy slimes appear from wave 2
+	spawn_interval = maxf(0.25, 1.2 - wave * 0.08)
+	speedy_chance = clampf((wave - 1) * 0.1, 0.0, 0.5)
 	spawn_timer = 0.0
 	_show_banner("WAVE %d" % wave)
 
@@ -69,60 +83,85 @@ func _start_wave() -> void:
 func _end_wave() -> void:
 	in_break = true
 	break_timer = time_between_waves
+	score += score_per_wave
+	currency += coins_per_wave
 	_show_banner("WAVE %d CLEARED" % wave)
 	if heal_between_waves > 0 and player != null:
 		player.health = mini(player.health + heal_between_waves, player.max_health)
 
 
-# ---------- spawning ----------
-
 func _pick_type() -> int:
-	# add more enemy types here later
 	if randf() < speedy_chance:
 		return Enemy.Type.SPEEDY
 	return Enemy.Type.BASIC
 
 
+func _pick_role() -> int:
+	var roll := randf()
+	if wave >= 7 and roll < 0.2:
+		return Enemy.Role.CHARGER
+	if wave >= 5 and roll < 0.45:
+		return Enemy.Role.FLANKER
+	if wave >= 3 and roll < 0.7:
+		return Enemy.Role.DODGER
+	return Enemy.Role.CHASER
+
+
 func _spawn_point() -> Vector3:
-	var lim := world_size / 2.0 - spawn_edge_inset
-	var p := Vector3.ZERO
-	for attempt in 10:
-		var t := randf_range(-lim, lim)
+	var limit := world_size / 2.0 - spawn_edge_inset
+	var point := Vector3.ZERO
+	for attempt in 20:
+		var value := randf_range(-limit, limit)
 		match randi() % 4:
-			0: p = Vector3(t, 0.1, -lim)
-			1: p = Vector3(t, 0.1, lim)
-			2: p = Vector3(-lim, 0.1, t)
-			_: p = Vector3(lim, 0.1, t)
+			0: point = Vector3(value, 0.1, -limit)
+			1: point = Vector3(value, 0.1, limit)
+			2: point = Vector3(-limit, 0.1, value)
+			_: point = Vector3(limit, 0.1, value)
 		if player == null:
-			return p
-		var flat := Vector2(p.x - player.global_position.x, p.z - player.global_position.z)
+			return point
+		var flat := Vector2(point.x - player.global_position.x, point.z - player.global_position.z)
 		if flat.length() >= min_spawn_distance:
-			return p
-	return p
+			return point
+	return point
 
 
 func _spawn_enemy() -> void:
 	if player == null:
 		player = get_tree().get_first_node_in_group("player")
-	var e := Enemy.new()                     # no scene needed, the script builds everything
-	e.type = _pick_type()                    # must be set before it enters the scene
-	e.died.connect(_on_enemy_died)
-	add_child(e)
-	e.global_position = _spawn_point()
+	var enemy := Enemy.new()
+	enemy.type = _pick_type()
+	enemy.role = _pick_role()
+	enemy.health = 1 + mini(3, int(wave / 6.0))
+	enemy.died.connect(_on_enemy_died)
+	add_child(enemy)
+	enemy.global_position = _spawn_point()
 
 
 func _on_enemy_died(_enemy_type: int) -> void:
-	alive -= 1
+	alive = maxi(0, alive - 1)
 	kills += 1
+	score += score_per_kill
+	currency += coins_per_kill
 
 
-# ---------- HUD ----------
+func _on_player_died() -> void:
+	game_over = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	results_title.text = "GAME OVER"
+	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun coins: %d\n\nRun coins are not saved yet." % [score, wave, kills, currency]
+	results.show()
+	restart_button.grab_focus()
+
+
+func _restart() -> void:
+	get_tree().reload_current_scene()
+
 
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 
 	info = Label.new()
-	info.custom_minimum_size = Vector2(500, 30)
+	info.custom_minimum_size = Vector2(700, 34)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	info.offset_top += 15
@@ -139,14 +178,42 @@ func _build_hud() -> void:
 	banner.modulate.a = 0.0
 	layer.add_child(banner)
 
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(center)
+
+	results = PanelContainer.new()
+	results.custom_minimum_size = Vector2(460, 330)
+	results.hide()
+	center.add_child(results)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 18)
+	results.add_child(box)
+
+	results_title = Label.new()
+	results_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	results_title.add_theme_font_size_override("font_size", 34)
+	box.add_child(results_title)
+
+	results_stats = Label.new()
+	results_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(results_stats)
+
+	restart_button = Button.new()
+	restart_button.text = "Play Again"
+	restart_button.pressed.connect(_restart)
+	box.add_child(restart_button)
+
 	add_child(layer)
 
 
 func _update_hud() -> void:
 	if in_break:
-		info.text = "Wave %d starts in %d   |   Kills: %d" % [wave + 1, ceili(break_timer), kills]
+		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   Coins: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
 	else:
-		info.text = "Wave %d   |   Enemies left: %d   |   Kills: %d" % [wave, to_spawn + alive, kills]
+		info.text = "Wave %d   |   Enemies left: %d   |   Kills: %d   |   Score: %d   |   Coins: %d" % [wave, to_spawn + alive, kills, score, currency]
 
 
 func _show_banner(text: String) -> void:
