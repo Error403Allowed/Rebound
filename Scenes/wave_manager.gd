@@ -94,15 +94,6 @@ func _update_music() -> void:
 	else:
 		MusicManager.play_combat()
 
-func _update_music() -> void:
-	if player == null:
-		return
-	var danger := alive >= 7 or wave >= 8 or float(player.health) / maxf(1.0, float(player.max_health)) < 0.35
-	if danger:
-		MusicManager.play_danger()
-	else:
-		MusicManager.play_combat()
-
 func _start_wave() -> void:
 	wave += 1
 	in_break = false
