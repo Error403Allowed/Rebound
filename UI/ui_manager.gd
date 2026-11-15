@@ -8,6 +8,7 @@ const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
 	["Intro", "Rebound is a horde-survival game with the focus of squishing enemies by bouncing noto them from a trampolines"],
 	["Controls", "W A S D — move\nMouse — look and aim\nSpace — jump \nQ — dash on ground or in air. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
+	["Enemy roles", "CHASER — moves directly toward you.\nDODGER — keeps its distance and changes direction often.\nFLANKER — circles around you and attacks from the side.\nCHARGER — pauses, then rushes forward in a straight line."],
 	["How to Play", "Survive endless waves in the grass arena. Place trampolines, and launch from them, landing on enemies to damage them. Earn EXP on enemy defeat, and spend it in the shop to purchase upgrades"],
 	["Thats all!", "Good luck, and have fun"],
 ]
@@ -254,6 +255,9 @@ func start_run() -> void:
 	loading = true
 
 func _process(delta: float) -> void:
+	var active_player := _player()
+	if active_player != null and cooldown != null:
+		cooldown.value = clampf(active_player.dash_charge, 0.0, 1.0)
 	if loading:
 		var progress: Array = []
 		var status := ResourceLoader.load_threaded_get_status(ARENA, progress)
@@ -356,7 +360,11 @@ func show_game() -> void:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tier_text = _hud_label(right, '"E" to place trampoline')
 	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var dash_title := _hud_label(right, "DASH")
+	dash_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	cooldown = _hud_bar(right, Color(0.4, 0.75, 1.0), 10)
+	cooldown.max_value = 1.0
+	cooldown.value = 1.0
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
