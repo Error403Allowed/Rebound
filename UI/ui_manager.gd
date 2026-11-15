@@ -6,14 +6,10 @@ const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["Intro", "Stomped is a horde-survival game with the focus of squishing enemies by bouncing noto them from a trampoline"],
-	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
-	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Earn XP immediately and spend it on upgrades during the run."],
-	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nSpace — jump (holding repeats jumps)\nF — upgrades (banked XP; applies immediately)\nEscape — pause menu\nR — restart with confirmation"],
-	["BUILD YOUR STOMPED", "Buy Stomped in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
-	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy stompeds you upward. The current build protects you from enemy contact during the launched state."],
-	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],
-	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and XP update during the run. Death freezes gameplay and opens results. XP is credited as you earn it, and purchases apply immediately. Spend banked XP between runs. If a save fails, pending XP is retried on the next award or when leaving the run."]
+	["Intro", "Stomped is a horde-survival game with the focus of squishing enemies by bouncing onto them from a trampoline"],
+	["Controls", "W A S D — move\nMouse — look and aim\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
+	["Good luck", "Survive as long as you can, purchasing upgrades along the way. Good luck!"],
+
 ]
 var root_ui: Control
 var content: VBoxContainer
