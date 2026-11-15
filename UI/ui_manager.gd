@@ -343,7 +343,7 @@ func show_game() -> void:
 	_hud_label(left, '"F" for upgrades')
 	wave_text = _hud_label(left, "XP: %d" % Progression.currency)
 	score_text = _hud_label(left, "Score: 0")
-	fps_text = _hud_label(left, "", 10)
+	fps_text = _hud_label(left, "")
 	var right := VBoxContainer.new()
 	hud.add_child(right)
 	right.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
