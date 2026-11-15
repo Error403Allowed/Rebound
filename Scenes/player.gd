@@ -408,10 +408,10 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	area.set_meta("tier", 0)
 	area.set_meta("charges", trampoline_charge_count)
 
-	# Opaque dark mat, clearly separated from grass.
+	# Opaque dark mat raised above the grass layer.
 	var mat_inst := MeshInstance3D.new()
 	mat_inst.mesh = mat_mesh
-	mat_inst.position.y = 0.14
+	mat_inst.position.y = 0.18
 	mat_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat_material := StandardMaterial3D.new()
 	mat_material.albedo_color = Color(0.06, 0.07, 0.09)
@@ -420,6 +420,25 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	mat_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat_inst.material_override = mat_material
 	area.add_child(mat_inst)
+
+	# Solid base skirt prevents grass blades from intersecting the mat.
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = tramp_radius
+	base_mesh.bottom_radius = tramp_radius
+	base_mesh.height = 0.18
+	base_mesh.radial_segments = 24
+	base_mesh.rings = 1
+	var base_inst := MeshInstance3D.new()
+	base_inst.mesh = base_mesh
+	base_inst.position.y = 0.09
+	base_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var base_material := StandardMaterial3D.new()
+	base_material.albedo_color = Color(0.04, 0.05, 0.06)
+	base_material.roughness = 0.9
+	base_material.metallic = 0.0
+	base_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	base_inst.material_override = base_material
+	area.add_child(base_inst)
 
 	# High-contrast padded rim makes the trampoline read as an object, not grass.
 	var rim_inst := MeshInstance3D.new()
