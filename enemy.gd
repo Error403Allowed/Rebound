@@ -12,6 +12,14 @@ const STATS := {
 }
 const ROLE_NAMES := ["CHASER", "DODGER", "FLANKER", "CHARGER"]
 const ROLE_COLORS := [Color(0.9, 0.25, 0.2), Color(0.95, 0.6, 0.15), Color(0.9, 0.3, 0.65), Color(0.65, 0.3, 0.95)]
+const TELEGRAPH_COLOR := Color(1.0, 0.95, 0.4)
+
+# meshes and materials are built once and shared by every enemy (needs Godot 4.1+)
+static var _blob_mesh: ArrayMesh
+static var _eye_mesh: ArrayMesh
+static var _eye_mat: StandardMaterial3D
+static var _chunk_mesh: SphereMesh
+static var _chunk_mats := {}
 
 @export var type: Type = Type.BASIC
 @export var role: Role = Role.CHASER
@@ -34,9 +42,15 @@ var tracking_descent := false
 var reacted := false
 var reaction_time := 0.0
 var player
-var mesh: MeshInstance3D
+var mesh: MeshInstance3D          # the blob body
+var visual: Node3D                # holds body + eyes, so they scale and turn together
 var collision: CollisionShape3D
 var material: StandardMaterial3D
+
+var body_size := 1.0
+var wobble_phase := 0.0
+var hit_flash := 0.0
+var current_color := Color(0, 0, 0, 0)
 
 
 func _ready() -> void:
@@ -46,25 +60,37 @@ func _ready() -> void:
 	speed = stats["speed"]
 	damage = stats["damage"]
 	var size: float = stats["size"]
+	body_size = size
 	orbit_sign = -1.0 if randf() < 0.5 else 1.0
 	ability_cooldown = randf_range(1.0, 3.0)
+	wobble_phase = randf() * TAU
 	add_to_group("enemy")
 	player = get_tree().get_first_node_in_group("player")
 
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.5 * size
-	sphere.height = 0.8 * size
-	sphere.radial_segments = 12
-	sphere.rings = 6
+	# glossy jelly material (one per enemy, since its colour changes)
 	material = StandardMaterial3D.new()
 	material.albedo_color = ROLE_COLORS[role]
-	material.roughness = 0.4
-	sphere.material = material
+	material.roughness = 0.2
+	material.rim_enabled = true
+	material.rim = 0.7
+	material.rim_tint = 0.5
+	material.emission_enabled = true
+	material.emission = ROLE_COLORS[role] * 0.3
+
+	visual = Node3D.new()
+	visual.scale = Vector3.ONE * size
+	add_child(visual)
+
 	mesh = MeshInstance3D.new()
-	mesh.mesh = sphere
-	mesh.position.y = 0.4 * size
+	mesh.mesh = _get_blob_mesh()
+	mesh.material_override = material
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mesh)
+	visual.add_child(mesh)
+
+	var eyes := MeshInstance3D.new()
+	eyes.mesh = _get_eye_mesh()
+	eyes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	visual.add_child(eyes)
 
 	collision = CollisionShape3D.new()
 	var shape := SphereShape3D.new()
@@ -90,6 +116,7 @@ func _physics_process(delta: float) -> void:
 		return
 	ability_cooldown = maxf(0.0, ability_cooldown - delta)
 	attack_timer = maxf(0.0, attack_timer - delta)
+	hit_flash = maxf(0.0, hit_flash - delta)
 
 	var offset: Vector3 = player.global_position - global_position
 	var flat_distance := Vector2(offset.x, offset.z).length()
@@ -200,12 +227,37 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 	move_and_slide()
 
-	mesh.scale.y = 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.01 + get_instance_id())
-	material.albedo_color = Color(1.0, 0.95, 0.4) if telegraph else ROLE_COLORS[role]
+	_update_visuals(delta, toward)
 
 	if attack_timer <= 0.0 and flat_distance <= attack_range and absf(player.global_position.y - global_position.y) < 1.8 and not player.launched:
 		player.take_damage(damage, self)
 		attack_timer = attack_cooldown
+
+
+# ---------- look ----------
+
+func _update_visuals(delta: float, toward: Vector3) -> void:
+	# turn the eyes toward the player
+	var target_yaw := atan2(-toward.x, -toward.z)
+	visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, 1.0 - exp(-12.0 * delta))
+
+	# jelly wobble: squash and stretch that keeps its volume, and pulses harder when telegraphing an attack
+	var t := Time.get_ticks_msec() * 0.001
+	var amp := 0.18 if telegraph else 0.07
+	var freq := 18.0 if telegraph else 7.0
+	var w := sin(t * freq + wobble_phase) * amp
+	visual.scale = Vector3(1.0 - w * 0.6, 1.0 + w, 1.0 - w * 0.6) * body_size
+
+	# colour: white when hit, yellow when telegraphing, otherwise the role colour
+	var color: Color = ROLE_COLORS[role]
+	if telegraph:
+		color = TELEGRAPH_COLOR
+	if hit_flash > 0.0:
+		color = Color.WHITE
+	if color != current_color:
+		current_color = color
+		material.albedo_color = color
+		material.emission = color * 0.3
 
 
 func squish(amount: int = 1) -> void:
@@ -213,11 +265,142 @@ func squish(amount: int = 1) -> void:
 		return
 	health -= amount
 	if health > 0:
+		hit_flash = 0.15                    # survived the hit: flash white
 		return
 	dead = true
 	remove_from_group("enemy")
 	collision.set_deferred("disabled", true)
 	died.emit(type)
+	# squashed flat for a moment, then bursts into particles
 	var tween := create_tween()
-	tween.tween_property(mesh, "scale", Vector3(1.8, 0.1, 1.8), 0.1)
+	tween.tween_property(visual, "scale", Vector3(1.5, 0.25, 1.5) * body_size, 0.06)
+	tween.tween_callback(_burst)
 	tween.tween_callback(queue_free)
+
+
+func _burst() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var p := CPUParticles3D.new()
+	p.mesh = _get_chunk_mesh()
+	p.material_override = _get_chunk_material(role)
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.amount = 22
+	p.lifetime = 0.8
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.3 * body_size
+	p.direction = Vector3.UP
+	p.spread = 80.0
+	p.initial_velocity_min = 3.0
+	p.initial_velocity_max = 8.0
+	p.gravity = Vector3(0.0, -20.0, 0.0)
+	p.scale_amount_min = 0.5 * body_size
+	p.scale_amount_max = 1.5 * body_size
+	var shrink := Curve.new()                # chunks shrink away over their lifetime
+	shrink.add_point(Vector2(0.0, 1.0))
+	shrink.add_point(Vector2(0.7, 0.8))
+	shrink.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = shrink
+	p.finished.connect(p.queue_free)
+	scene.add_child(p)
+	p.global_position = global_position + Vector3(0.0, 0.4 * body_size, 0.0)
+	p.emitting = true
+
+
+# ---------- shared meshes (built once) ----------
+
+static func _get_blob_mesh() -> ArrayMesh:
+	if _blob_mesh == null:
+		_blob_mesh = _build_blob_mesh()
+	return _blob_mesh
+
+
+static func _get_eye_mesh() -> ArrayMesh:
+	if _eye_mesh == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for sx in [-1.0, 1.0]:
+			_add_sphere(st, Vector3(sx * 0.17, 0.5, -0.41), 0.11, Color.WHITE)
+			_add_sphere(st, Vector3(sx * 0.17, 0.5, -0.495), 0.055, Color(0.02, 0.02, 0.05))
+		_eye_mesh = st.commit()
+		_eye_mat = StandardMaterial3D.new()
+		_eye_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_eye_mat.vertex_color_use_as_albedo = true
+		_eye_mesh.surface_set_material(0, _eye_mat)
+	return _eye_mesh
+
+
+static func _get_chunk_mesh() -> SphereMesh:
+	if _chunk_mesh == null:
+		_chunk_mesh = SphereMesh.new()
+		_chunk_mesh.radius = 0.09
+		_chunk_mesh.height = 0.18
+		_chunk_mesh.radial_segments = 6
+		_chunk_mesh.rings = 3
+	return _chunk_mesh
+
+
+static func _get_chunk_material(r: int) -> StandardMaterial3D:
+	if not _chunk_mats.has(r):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = ROLE_COLORS[r]
+		m.roughness = 0.3
+		m.emission_enabled = true
+		m.emission = ROLE_COLORS[r] * 0.5
+		_chunk_mats[r] = m
+	return _chunk_mats[r]
+
+
+# lumpy dome with a flat base: wider than it is tall, bottom sits at y = 0
+static func _build_blob_mesh() -> ArrayMesh:
+	var rings := 12
+	var segs := 16
+	var grid: Array = []
+	for r in rings + 1:
+		var phi := PI * float(r) / rings
+		var row: Array[Vector3] = []
+		for s in segs:
+			var theta := TAU * float(s) / segs
+			var d := Vector3(sin(phi) * cos(theta), cos(phi), sin(phi) * sin(theta))
+			var lump := 1.0 + 0.06 * sin(d.x * 5.0 + d.z * 3.0) + 0.05 * sin(d.y * 6.0 + d.x * 2.0)
+			var p := d * 0.5 * lump
+			p.y = p.y * 0.85 + 0.4
+			if p.y < 0.0:
+				p.y = 0.0
+			row.append(p)
+		grid.append(row)
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for r in rings:
+		for s in segs:
+			var s2 := (s + 1) % segs
+			var a: Vector3 = grid[r][s]
+			var b: Vector3 = grid[r][s2]
+			var c: Vector3 = grid[r + 1][s]
+			var d2: Vector3 = grid[r + 1][s2]
+			for v in [a, c, b, b, c, d2]:
+				st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
+
+
+static func _add_sphere(st: SurfaceTool, center: Vector3, radius: float, color: Color) -> void:
+	var rings := 6
+	var segs := 8
+	for i in rings:
+		var p0 := PI * float(i) / rings
+		var p1 := PI * float(i + 1) / rings
+		for j in segs:
+			var t0 := TAU * float(j) / segs
+			var t1 := TAU * float(j + 1) / segs
+			var a := center + radius * Vector3(sin(p0) * cos(t0), cos(p0), sin(p0) * sin(t0))
+			var b := center + radius * Vector3(sin(p0) * cos(t1), cos(p0), sin(p0) * sin(t1))
+			var c := center + radius * Vector3(sin(p1) * cos(t0), cos(p1), sin(p1) * sin(t0))
+			var d := center + radius * Vector3(sin(p1) * cos(t1), cos(p1), sin(p1) * sin(t1))
+			for v in [a, c, b, b, c, d]:
+				st.set_color(color)
+				st.add_vertex(v)

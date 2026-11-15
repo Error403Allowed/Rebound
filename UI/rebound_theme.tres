@@ -1,6 +1,6 @@
 [gd_resource type="Theme" format=3 uid="uid://qg60gmunqyk1"]
 
-[ext_resource type="FontFile" path="res://UI/fonts/JetBrainsMono-Regular.ttf" id="1_mono"]
+[ext_resource type="FontFile" uid="uid://buj3i513tpxo5" path="res://UI/fonts/JetBrainsMono-Regular.ttf" id="1_mono"]
 
 [sub_resource type="StyleBoxFlat" id="Disabled"]
 content_margin_left = 22.0
