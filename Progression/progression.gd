@@ -119,6 +119,20 @@ func upgraded_cooldowns(base: Array[float]) -> Array[float]:
 		result.append(maxf(1.0, value - int(levels.cooldown) * float(UPGRADES.cooldown.step)))
 	return result
 
+func reset_progress() -> int:
+	var before := _snapshot()
+	currency = 0
+	levels = {"health": 0, "stomp": 0, "cooldown": 0, "rebound": 0}
+	best_score = 0
+	highest_wave = 0
+	var error := save_progress()
+	if error != OK:
+		_restore(before)
+		return error
+	load_notice = ""
+	changed.emit()
+	return OK
+
 func begin_run() -> int:
 	next_run_id += 1
 	active_runs[next_run_id] = false

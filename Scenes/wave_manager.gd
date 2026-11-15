@@ -7,10 +7,10 @@ extends Node
 @export var first_wave_delay := 5.0
 @export var time_between_waves := 6.0
 @export var base_count := 5
-@export var count_per_wave := 12
+@export var count_per_wave := 4
 @export var max_alive := 120
 @export var heal_between_waves := 0
-@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.55   # share of a wave you must kill to move on
+@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.70   # share of a wave you must kill to move on
 
 @export_group("Spawning")
 @export var spawn_edge_inset := 2.0
@@ -131,11 +131,9 @@ func _pick_type() -> int:
 
 func _pick_role() -> int:
 	var roll := randf()
-	if wave >= 7 and roll < 0.2:
+	if wave >= 3 and roll < 0.18:
 		return Enemy.Role.CHARGER
-	if wave >= 5 and roll < 0.45:
-		return Enemy.Role.FLANKER
-	if wave >= 3 and roll < 0.7:
+	if wave >= 2 and roll < 0.48:
 		return Enemy.Role.DODGER
 	return Enemy.Role.CHASER
 
