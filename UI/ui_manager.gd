@@ -178,6 +178,7 @@ func _focus_first() -> void:
 			return
 
 func show_title() -> void:
+	MusicManager.play_menu()
 	screen = "title"
 	get_tree().paused = false
 	_page("REBOUND")
@@ -241,6 +242,7 @@ func confirm(title: String, message: String, action: Callable) -> void:
 	modal.popup_centered(Vector2i(540, 220))
 
 func start_run() -> void:
+	MusicManager.play_combat()
 	if loading: return
 	if not _bank_before_leaving(): return
 	get_tree().paused = false
@@ -402,6 +404,7 @@ func show_game() -> void:
 		manager.results.hide()
 
 func show_pause() -> void:
+	MusicManager.pause_to_menu()
 	screen = "pause"
 	_page("PAUSED", "The arena, enemies, attacks and wave countdown are frozen.")
 	var manager := _manager()
@@ -420,7 +423,7 @@ func show_pause() -> void:
 func show_results() -> void:
 	screen = "results"
 	var manager := _manager()
-	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
+	_page("NEW PERSONAL BEST" if manager.new_best else "DEFEAT")
 	_label(content, str(manager.score), 72)
 	_label(content, "FINAL SCORE", 20)
 	_label(content, "Wave reached: %d / Waves cleared: %d\nEnemies defeated: %d / Time: %ds" % [manager.wave, manager.waves_cleared, manager.kills, int(elapsed)], 26)

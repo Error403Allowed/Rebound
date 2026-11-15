@@ -182,6 +182,7 @@ func _on_enemy_died(_enemy_type: int, enemy: Node) -> void:
 
 func _on_player_died() -> void:
 	game_over = true
+	MusicManager.play_death()
 	bank_run()
 	pause_active = false
 	get_tree().paused = true
