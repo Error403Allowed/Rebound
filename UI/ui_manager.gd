@@ -518,12 +518,15 @@ func open_settings(origin: String) -> void:
 				_button(box, "RESET SETTINGS", func(): confirm("Reset preferences?", "Restore default preferences? Your run is not reset.", func():
 					SettingsManager.reset_defaults()
 					open_settings(return_screen)))
-				_button(box, "CLEAR ALL STATS", func(): confirm("Clear all stats?", "This permanently removes your XP, upgrades, best score, and highest wave. This cannot be undone.", func():
-				Progression.reset_progress()
-				open_settings(return_screen)))
+				_button(box, "CLEAR ALL STATS", confirm_clear_stats)
 			_label(box, "Save status: " + error_string(SettingsManager.last_save_error), 20)
 	_button(content, "BACK", _back)
 	_focus_first()
+
+func confirm_clear_stats() -> void:
+	confirm("Clear all stats?", "This permanently removes your XP, upgrades, best score, and highest wave. This cannot be undone.", func():
+		Progression.reset_progress()
+		open_settings(return_screen))
 
 func _toggle(parent: Node, title: String, key: String) -> void:
 	var item := CheckButton.new()
