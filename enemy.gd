@@ -9,6 +9,7 @@ enum Role { CHASER, DODGER, FLANKER, CHARGER }
 const STATS := {
 	Type.BASIC: {"health": 1, "speed": 3.5, "damage": 10, "size": 1.0, "color": Color(0.25, 0.8, 0.25)},
 	Type.SPEEDY: {"health": 1, "speed": 6.5, "damage": 15, "size": 0.8, "color": Color(0.95, 0.75, 0.1)},
+	Type.TANK: {"health": 4, "speed": 2.4, "damage": 20, "size": 1.35, "color": Color(0.75, 0.2, 0.2)},
 }
 const ROLE_NAMES := ["CHASER", "DODGER", "FLANKER", "CHARGER"]
 const ROLE_COLORS := [Color(0.9, 0.25, 0.2), Color(0.95, 0.6, 0.15), Color(0.9, 0.3, 0.65), Color(0.65, 0.3, 0.95)]
