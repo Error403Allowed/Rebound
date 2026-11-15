@@ -58,7 +58,6 @@ void fragment() {
 	COLOR = vec4(colour, 1.0);
 }
 """
-"""
 	material.shader = shader
 	var rect := ColorRect.new()
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
