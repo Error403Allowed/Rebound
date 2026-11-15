@@ -12,30 +12,30 @@
 radius = 0.4
 height = 1.8
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=1009625096]
 
-[node name="Scenery" type="Node3D" parent="."]
+[node name="Scenery" type="Node3D" parent="." unique_id=1492069934]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5112839, 0)
 script = ExtResource("1_21xkr")
 
-[node name="World" type="Node3D" parent="."]
+[node name="World" type="Node3D" parent="." unique_id=1586400060]
 script = ExtResource("5_kry3j")
 
-[node name="Grass" type="Node3D" parent="."]
+[node name="Grass" type="Node3D" parent="." unique_id=823318749]
 script = ExtResource("2_jjvhh")
 grass_material = ExtResource("2_kry3j")
 
-[node name="Player" type="CharacterBody3D" parent="."]
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1274700211]
 script = ExtResource("2_bo1nx")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1809811741]
 shape = SubResource("CapsuleShape3D_xgh8v")
 
-[node name="Head" type="Node3D" parent="Player"]
+[node name="Head" type="Node3D" parent="Player" unique_id=1523562149]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Player/Head"]
+[node name="Camera3D" type="Camera3D" parent="Player/Head" unique_id=1731290117]
 
-[node name="WaveManager" type="Node" parent="."]
+[node name="WaveManager" type="Node" parent="." unique_id=1495279851]
 script = ExtResource("6_21xkr")
 enemy_scene = ExtResource("7_6bp64")

@@ -26,9 +26,9 @@ signal stomped
 @export var place_range := 10.0
 @export var tramp_radius := 1.5
 @export var world_size := 65.0
-@export var trampoline_launch_speeds: Array[float] = [16.0, 20.0, 25.0]
-@export var trampoline_charges: Array[int] = [4, 3, 2]
-@export var trampoline_cooldowns: Array[float] = [5.0, 8.0, 12.0]
+@export var trampoline_launch_speed := 22.5   # halfway between the old blue (20) and purple (25)
+@export var trampoline_charge_count := 3      # bounces before the trampoline disappears
+@export var trampoline_cooldown := 7.0
 @export var rebound_increment := 0.0
 @export var maximum_rebound_bonus := 8.0
 
@@ -38,19 +38,30 @@ signal stomped
 @export var slam_radius := 2.0
 @export var hit_invulnerability := 0.4
 @export var rebound_speed := 10.0
+@export var max_enemy_bounces := 3            # rebounds off enemies allowed per airtime
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 
 const TRAMP_HEIGHT := 0.3
-const TIER_COLORS := [Color(0.2, 0.9, 0.4), Color(0.2, 0.5, 1.0), Color(0.7, 0.3, 1.0)]
-const TIER_NAMES := ["GREEN", "BLUE", "PURPLE"]
+const TRAMP_COLOR := Color(0.1, 0.4, 1.0)         # blue rim
+const TRAMP_MAT_COLOR := Color(0.03, 0.03, 0.04)  # black mat
+const RIM_THICKNESS := 0.3                        # width of the blue rim
+
+# --- compatibility stand-ins so ui_manager.gd and other scripts keep working ---
+# there is only one trampoline type now, so every entry is the same
+const TIER_COLORS := [TRAMP_COLOR, TRAMP_COLOR, TRAMP_COLOR]
+const TIER_NAMES := ["TRAMPOLINE", "TRAMPOLINE", "TRAMPOLINE"]
+var selected_tier := 0
+var trampoline_cooldowns: Array[float] = []
+var trampoline_launch_speeds: Array[float] = []
+var trampoline_charges: Array[int] = []
 
 var place_mode := false
-var selected_tier := 0
 var cooldown_left := 0.0
 var launched := false
 var slammed := false
+var enemy_bounces := 0                # rebounds used since last touching the ground / a trampoline
 var health := 100
 var hit_timer := 0.0
 var last_trampoline: Node = null
@@ -63,7 +74,9 @@ var dash_direction := Vector3.ZERO
 var last_impact_frame := -1
 var last_fall_speed := 0.0
 
-var tramp_mesh: CylinderMesh
+var tramp_mesh: CylinderMesh      # flat disc used for the placement ghost
+var mat_mesh: CylinderMesh        # black centre
+var rim_mesh: TorusMesh           # blue padded rim
 var preview: MeshInstance3D
 var preview_mat: StandardMaterial3D
 var hud: Label
@@ -74,18 +87,21 @@ func _ready() -> void:
 	add_to_group("player")
 	max_health = Progression.upgraded_health(max_health)
 	stomp_damage = Progression.upgraded_stomp(stomp_damage)
-	trampoline_cooldowns = Progression.upgraded_cooldowns(trampoline_cooldowns)
+	# Progression upgrades work on an array, so wrap the single cooldown in one
+	var cooldowns: Array[float] = [trampoline_cooldown]
+	cooldowns = Progression.upgraded_cooldowns(cooldowns)
+	trampoline_cooldown = cooldowns[0]
 	rebound_increment = Progression.upgraded_rebound_increment()
 	health = max_health
 	base_fov = camera.fov
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-	tramp_mesh = CylinderMesh.new()
-	tramp_mesh.top_radius = tramp_radius
-	tramp_mesh.bottom_radius = tramp_radius
-	tramp_mesh.height = TRAMP_HEIGHT
-	tramp_mesh.radial_segments = 16
-	tramp_mesh.rings = 1
+	# fill the stand-in lists (three identical entries, matching the old three tiers)
+	trampoline_cooldowns = [trampoline_cooldown, trampoline_cooldown, trampoline_cooldown]
+	trampoline_launch_speeds = [trampoline_launch_speed, trampoline_launch_speed, trampoline_launch_speed]
+	trampoline_charges = [trampoline_charge_count, trampoline_charge_count, trampoline_charge_count]
+
+	_build_trampoline_meshes()
 
 	preview_mat = StandardMaterial3D.new()
 	preview_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -114,6 +130,42 @@ func _ready() -> void:
 	add_child(layer)
 
 
+# built once and shared by every trampoline, so extra trampolines cost almost nothing
+func _build_trampoline_meshes() -> void:
+	# flat disc for the placement ghost
+	tramp_mesh = CylinderMesh.new()
+	tramp_mesh.top_radius = tramp_radius
+	tramp_mesh.bottom_radius = tramp_radius
+	tramp_mesh.height = TRAMP_HEIGHT
+	tramp_mesh.radial_segments = 16
+	tramp_mesh.rings = 1
+
+	# black mat in the middle, sitting lower than the rim
+	mat_mesh = CylinderMesh.new()
+	mat_mesh.top_radius = tramp_radius - RIM_THICKNESS * 0.5
+	mat_mesh.bottom_radius = tramp_radius - RIM_THICKNESS * 0.5
+	mat_mesh.height = 0.1
+	mat_mesh.radial_segments = 20
+	mat_mesh.rings = 1
+	var black := StandardMaterial3D.new()
+	black.albedo_color = TRAMP_MAT_COLOR
+	black.roughness = 0.9
+	black.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	mat_mesh.material = black
+
+	# blue padded rim standing up around the edge
+	rim_mesh = TorusMesh.new()
+	rim_mesh.outer_radius = tramp_radius
+	rim_mesh.inner_radius = tramp_radius - RIM_THICKNESS
+	rim_mesh.rings = 20
+	rim_mesh.ring_segments = 8
+	var blue := StandardMaterial3D.new()
+	blue.albedo_color = TRAMP_COLOR
+	blue.roughness = 0.5
+	blue.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	rim_mesh.material = blue
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
@@ -121,14 +173,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_E:
+				# E toggles place mode
 				if UIManager.screen == "" and not UIManager.modal.visible and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-					try_place()
-			KEY_1:
-				selected_tier = 0
-			KEY_2:
-				selected_tier = 1
-			KEY_3:
-				selected_tier = 2
+					place_mode = not place_mode
 			KEY_Q:
 				try_dash()
 			KEY_R:
@@ -136,7 +183,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
+		elif place_mode:
 			try_place()
 
 
@@ -193,8 +240,10 @@ func _physics_process(delta: float) -> void:
 
 	_check_slam(fall_speed)
 
+	# landed: the launch is over and the enemy-bounce allowance refills
 	if launched and is_on_floor() and velocity.y <= 0.0:
 		launched = false
+		enemy_bounces = 0
 
 	_update_preview()
 	_update_hud()
@@ -223,6 +272,7 @@ func take_damage(amount: int, attacker: Node = null) -> void:
 	health_changed.emit(health)
 	_show_damage_flash()
 	if health <= 0:
+		place_mode = false
 		velocity = Vector3.ZERO
 		died.emit()
 
@@ -253,7 +303,9 @@ func _slam_impact() -> void:
 			if not enemy.dead:
 				enemy.squish(stomp_damage)
 				hit_enemy = true
-	if hit_enemy:
+	# rebound off the enemies, but only while you still have bounces left
+	if hit_enemy and enemy_bounces < max_enemy_bounces:
+		enemy_bounces += 1
 		velocity.y = rebound_speed
 		launched = true
 		slammed = false
@@ -305,6 +357,8 @@ func _is_valid(hit: Dictionary) -> bool:
 
 func _update_preview() -> void:
 	preview.visible = false
+	if not place_mode:                       # ghost only shows in place mode
+		return
 	if not bool(SettingsManager.get_value("placement_preview")):
 		return
 	if health <= 0 or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -314,7 +368,7 @@ func _update_preview() -> void:
 		return
 	preview.visible = true
 	preview.global_position = hit.position + Vector3(0, TRAMP_HEIGHT / 2.0, 0)
-	preview_mat.albedo_color = Color(TIER_COLORS[selected_tier], 0.55) if cooldown_left <= 0.0 else Color(1.0, 0.2, 0.2, 0.5)
+	preview_mat.albedo_color = Color(TRAMP_COLOR, 0.55) if cooldown_left <= 0.0 else Color(1.0, 0.2, 0.2, 0.5)
 
 
 func try_place() -> void:
@@ -324,35 +378,36 @@ func try_place() -> void:
 	if not _is_valid(hit):
 		return
 	_spawn_trampoline(hit.position)
-	cooldown_left = trampoline_cooldowns[selected_tier]
+	cooldown_left = trampoline_cooldown
+	place_mode = false                       # back to normal after placing
 
 
 func _spawn_trampoline(pos: Vector3) -> void:
 	var area := Area3D.new()
-	area.set_meta("tier", selected_tier)
-	area.set_meta("charges", trampoline_charges[selected_tier])
+	area.set_meta("tier", 0)
+	area.set_meta("charges", trampoline_charge_count)
 
-	var visual := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = tramp_radius
-	mesh.bottom_radius = tramp_radius
-	mesh.height = TRAMP_HEIGHT
-	mesh.radial_segments = 16
-	mesh.rings = 1
-	var material := StandardMaterial3D.new()
-	material.albedo_color = TIER_COLORS[selected_tier]
-	mesh.material = material
-	visual.mesh = mesh
-	visual.position.y = TRAMP_HEIGHT / 2.0
-	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	area.add_child(visual)
+	# black mat (lower than the rim)
+	var mat_inst := MeshInstance3D.new()
+	mat_inst.mesh = mat_mesh
+	mat_inst.position.y = 0.13
+	mat_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	area.add_child(mat_inst)
+
+	# blue padded rim, its centre line at half the rim thickness so it sits on the ground
+	var rim_inst := MeshInstance3D.new()
+	rim_inst.mesh = rim_mesh
+	rim_inst.position.y = RIM_THICKNESS * 0.5
+	rim_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	area.add_child(rim_inst)
 
 	var charge_label := Label3D.new()
+	charge_label.name = "ChargeLabel"
 	charge_label.position.y = 0.7
 	charge_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	charge_label.font_size = 48
 	charge_label.pixel_size = 0.008
-	charge_label.text = str(trampoline_charges[selected_tier])
+	charge_label.text = str(trampoline_charge_count)
 	area.add_child(charge_label)
 
 	var collision := CollisionShape3D.new()
@@ -375,16 +430,16 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 		return
 	if velocity.y < -3.0 or (velocity.y <= 0.0 and last_fall_speed < -3.0):
 		_slam_impact()
-	var tier := int(area.get_meta("tier"))
 	var charges := int(area.get_meta("charges"))
 	var bonus := register_trampoline_bounce(area)
-	var launch := trampoline_launch_speeds[tier] + bonus
+	var launch := trampoline_launch_speed + bonus
 	velocity.y = maxf(velocity.y, launch)
 	launched = true
 	slammed = false
+	enemy_bounces = 0                        # a trampoline bounce refills the enemy-bounce allowance
 	charges = maxi(0, charges - 1)
 	area.set_meta("charges", charges)
-	var label := area.get_child(1) as Label3D
+	var label := area.get_node_or_null("ChargeLabel") as Label3D
 	if label != null:
 		label.text = str(charges)
 	if charges <= 0:
@@ -392,13 +447,14 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 
 
 func _update_hud() -> void:
-	var status := "%s trampoline ready (left click)" % TIER_NAMES[selected_tier] if cooldown_left <= 0.0 else "%s trampoline in %.1fs" % [TIER_NAMES[selected_tier], cooldown_left]
+	var status: String
+	if cooldown_left > 0.0:
+		status = "Trampoline in %.1fs" % cooldown_left
+	else:
+		status = "Trampoline ready (E)"
 	if place_mode:
-		status = "PLACE MODE: click to place   |   " + status
-	hud.text = "HP: %d / %d
-Tier: %s
-%s
-WASD move | Shift sprint | Space jump | Q dash | 1/2/3 tier | Left click place | Esc pause | R restart" % [health, max_health, TIER_NAMES[selected_tier], status]
+		status = "PLACE MODE: left click to place, E to cancel   |   " + status
+	hud.text = "HP: %d / %d\n%s\nWASD move | Shift sprint | Space jump | Q dash | E place mode | Esc pause | R restart" % [health, max_health, status]
 
 
 func _update_fov(delta: float, sprinting: bool) -> void:
