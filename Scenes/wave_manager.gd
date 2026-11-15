@@ -95,7 +95,6 @@ func _update_music() -> void:
 	var intensity := 0.2 + enemy_pressure * 0.4 + wave_pressure * 0.2 + health_pressure * 0.4
 	if in_break:
 		intensity = 0.1
-	MusicManager.set_intensity(intensity)
 
 func _start_wave() -> void:
 	wave += 1
@@ -118,7 +117,6 @@ func _end_wave() -> void:
 	score += score_per_wave
 	_award_xp(coins_per_wave)
 	_show_banner("WAVE %d CLEARED" % wave)
-	SFXManager.play("success", -8.0)
 	if heal_between_waves > 0 and player != null:
 		player.health = mini(player.health + heal_between_waves, player.max_health)
 
@@ -184,7 +182,6 @@ func _on_enemy_died(_enemy_type: int, enemy: Node) -> void:
 
 func _on_player_died() -> void:
 	game_over = true
-	MusicManager.play_death()
 	bank_run()
 	pause_active = false
 	get_tree().paused = true

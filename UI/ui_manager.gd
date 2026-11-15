@@ -76,8 +76,7 @@ func _button(parent: Node, text: String, action: Callable) -> Button:
 	item.mouse_exited.connect(_animate_button.bind(item, false))
 	item.focus_entered.connect(_animate_button.bind(item, true))
 	item.focus_exited.connect(_animate_button.bind(item, false))
-	item.pressed.connect(func(): SFXManager.play("ui_click", -12.0))
-	item.pressed.connect(action)
+		item.pressed.connect(action)
 	parent.add_child(item)
 	return item
 
@@ -175,7 +174,6 @@ func _focus_first() -> void:
 
 func show_title() -> void:
 	screen = "title"
-	MusicManager.play_menu()
 	get_tree().paused = false
 	_page("REBOUND")
 	_button(content, "START SURVIVAL", start_run)
@@ -239,7 +237,6 @@ func confirm(title: String, message: String, action: Callable) -> void:
 
 func start_run() -> void:
 	if loading: return
-	MusicManager.play_combat()
 	if not _bank_before_leaving(): return
 	get_tree().paused = false
 	screen = "loading"
@@ -384,7 +381,6 @@ func show_game() -> void:
 
 func show_pause() -> void:
 	screen = "pause"
-	MusicManager.pause_to_menu()
 	_page("PAUSED", "The arena, enemies, attacks and wave countdown are frozen.")
 	var manager := _manager()
 	if manager != null:
@@ -401,7 +397,6 @@ func show_pause() -> void:
 
 func show_results() -> void:
 	screen = "results"
-	MusicManager.play_menu()
 	var manager := _manager()
 	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
 	_label(content, str(manager.score), 72)
@@ -426,7 +421,6 @@ func request_restart() -> void:
 
 func leave_run() -> void:
 	if not _bank_before_leaving(): return
-	MusicManager.play_menu()
 	_clear_menu_world()
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://UI/boot.tscn")

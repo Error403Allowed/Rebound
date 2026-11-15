@@ -263,7 +263,6 @@ func squish(amount: int = 1) -> void:
 		return
 	dead = true
 	remove_from_group("enemy")
-	SFXManager.play("enemy_hit", -10.0)
 	collision.set_deferred("disabled", true)
 	died.emit(type)
 	# squashed flat for a moment, then bursts into particles
@@ -274,7 +273,7 @@ func squish(amount: int = 1) -> void:
 
 
 func _burst() -> void:
-	SFXManager.play("enemy_kill", -6.0, randf_range(0.9, 1.1))
+	SFXManager.play_enemy_death()
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
