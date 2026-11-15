@@ -70,7 +70,7 @@ func run_tests() -> void:
 	player._slam_impact()
 	check(enemy.health == 2, "enemy inside radius takes damage")
 	check(outside.health == 3, "enemy outside radius is unharmed")
-	check(player.velocity.y == player.rebound_speed, "enemy hit rebounds player upward")
+	check(player.velocity.y == player.stomped_speed, "enemy hit stompeds player upward")
 	manager._pause()
 	var before: Vector3 = enemy.global_position
 	var timer: float = enemy.attack_timer

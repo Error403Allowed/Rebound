@@ -1,8 +1,8 @@
-# Rebound
+# Stomped
 
 > A first-person horde survival game where you bounce back harder every time.
 
-Rebound is a 1st person horde survival game built for **HackClub's Haven game jam**. Survive an increasingly large and powerful horde of enemies for as long as possible. Place a trampoline, launch yourself high into the air, and crush the enemies beneath you. A roguelite-style upgrade system lets you come back stronger after every death.
+Stomped is a 1st person horde survival game built for **HackClub's Haven game jam**. Survive an increasingly large and powerful horde of enemies for as long as possible. Place a trampoline, launch yourself high into the air, and crush the enemies beneath you. A roguelite-style upgrade system lets you come back stronger after every death.
 
 ## Theme: "Bounce Back"
 

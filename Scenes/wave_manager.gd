@@ -4,8 +4,8 @@ extends Node
 @export var world_size := 65.0
 
 @export_group("Waves")
-@export var first_wave_delay := 5.0
-@export var time_between_waves := 6.0
+@export var first_wave_delay := 2.0
+@export var time_between_waves := 2.5
 @export var base_count := 5
 @export var count_per_wave := 4
 @export var max_alive := 120
@@ -103,7 +103,7 @@ func _start_wave() -> void:
 	wave_total = to_spawn
 	wave_needed = maxi(1, ceili(wave_total * clear_fraction))
 	wave_kills = 0
-	spawn_interval = maxf(0.25, 1.2 - wave * 0.08)
+	spawn_interval = maxf(0.15, 0.7 - wave * 0.05)
 	spawn_timer = 0.0
 	_show_banner("WAVE %d" % wave)
 

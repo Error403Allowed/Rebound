@@ -29,16 +29,16 @@ signal stomped
 @export var trampoline_launch_speed := 22.5   # halfway between the old blue (20) and purple (25)
 @export var trampoline_charge_count := 3      # bounces before the trampoline disappears
 @export var trampoline_cooldown := 7.0
-@export var rebound_increment := 0.0
-@export var maximum_rebound_bonus := 8.0
+@export var stomped_increment := 0.0
+@export var maximum_stomped_bonus := 8.0
 
 @export_group("Combat")
 @export var max_health := 100
 @export var stomp_damage := 1
 @export var slam_radius := 2.0
 @export var hit_invulnerability := 0.4
-@export var rebound_speed := 10.0
-@export var max_enemy_bounces := 3            # rebounds off enemies allowed per airtime
+@export var stomped_speed := 10.0
+@export var max_enemy_bounces := 3            # stompeds off enemies allowed per airtime
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -62,7 +62,7 @@ var place_mode := false
 var cooldown_left := 0.0
 var launched := false
 var slammed := false
-var enemy_bounces := 0                # rebounds used since last touching the ground / a trampoline
+var enemy_bounces := 0                # stompeds used since last touching the ground / a trampoline
 var health := 100
 var hit_timer := 0.0
 var last_trampoline: Node = null
@@ -96,7 +96,7 @@ func _ready() -> void:
 	var cooldowns: Array[float] = [trampoline_cooldown]
 	cooldowns = Progression.upgraded_cooldowns(cooldowns)
 	trampoline_cooldown = cooldowns[0]
-	rebound_increment = Progression.upgraded_rebound_increment()
+	stomped_increment = Progression.upgraded_stomped_increment()
 	health = max_health
 	base_fov = camera.fov
 	_on_health_changed(health)
@@ -280,7 +280,7 @@ func register_trampoline_bounce(trampoline: Node) -> float:
 	else:
 		consecutive_bounces = 0
 	last_trampoline = trampoline
-	return minf(consecutive_bounces * rebound_increment, maximum_rebound_bonus)
+	return minf(consecutive_bounces * stomped_increment, maximum_stomped_bonus)
 
 
 func take_damage(amount: int, attacker: Node = null) -> void:
@@ -329,10 +329,10 @@ func _slam_impact() -> void:
 			if not enemy.dead:
 				enemy.squish(stomp_damage)
 				hit_enemy = true
-	# rebound off the enemies, but only while you still have bounces left
+	# stomped off the enemies, but only while you still have bounces left
 	if hit_enemy and enemy_bounces < max_enemy_bounces:
 		enemy_bounces += 1
-		velocity.y = rebound_speed
+		velocity.y = stomped_speed
 		launched = true
 		slammed = false
 	_spawn_shockwave(origin)

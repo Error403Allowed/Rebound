@@ -1,4 +1,4 @@
-# Rebound UI implementation
+# Stomped UI implementation
 
 ## Scope
 Complete front-end, tutorial, pause/results, preferences, HUD and feedback.

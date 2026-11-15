@@ -1,17 +1,17 @@
 extends CanvasLayer
 
-const THEME = preload("res://UI/rebound_theme.tres")
+const THEME = preload("res://UI/stomped_theme.tres")
 const GLASS = preload("res://UI/liquid_glass.gdshader")
 const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["Intro", "Rebound is a horde-survival game with the focus of squishing enemies by bouncing noto them from a trampoline"],
+	["Intro", "Stomped is a horde-survival game with the focus of squishing enemies by bouncing noto them from a trampoline"],
 	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
 	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Earn XP immediately and spend it on upgrades during the run."],
 	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nSpace — jump (holding repeats jumps)\nF — upgrades (banked XP; applies immediately)\nEscape — pause menu\nR — restart with confirmation"],
-	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
-	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
+	["BUILD YOUR STOMPED", "Buy Stomped in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
+	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy stompeds you upward. The current build protects you from enemy contact during the launched state."],
 	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],
 	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and XP update during the run. Death freezes gameplay and opens results. XP is credited as you earn it, and purchases apply immediately. Spend banked XP between runs. If a save fails, pending XP is retried on the next award or when leaving the run."]
 ]
@@ -181,20 +181,20 @@ func show_title() -> void:
 	MusicManager.play_menu()
 	screen = "title"
 	get_tree().paused = false
-	_page("REBOUND")
+	_page("STOMPED")
 	_button(content, "START SURVIVAL", start_run)
 	_button(content, "UPGRADES", func(): show_shop("title"))
 	_button(content, "HOW TO PLAY", func(): open_help("title"))
 	_button(content, "SETTINGS", func(): open_settings("title"))
 	_button(content, "CREDITS", show_credits)
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Close the game?", func(): get_tree().quit()))
+	_button(content, "QUIT", func(): confirm("Quit Stomped?", "Close the game?", func(): get_tree().quit()))
 	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     XP  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 18)
 	if Progression.load_notice != "": _label(content, Progression.load_notice, 18)
 	_focus_first()
 
 func _show_welcome() -> void:
 	screen = "welcome"
-	_page("WELCOME TO REBOUND", "Set up your experience before your first run.")
+	_page("WELCOME TO STOMPED", "Set up your experience before your first run.")
 	_label(content, "Launch from coloured trampolines, land within 1.5 metres of enemies, and survive endless waves. Settings can be reopened at any time from pause.", 28)
 	_button(content, "ACCESSIBILITY & CAMERA SETTINGS", func(): open_settings("welcome"))
 	_button(content, "LEARN TO PLAY", func():
@@ -230,7 +230,7 @@ func _show_lesson() -> void:
 
 func show_credits() -> void:
 	screen = "credits"
-	_page("CREDITS", "REBOUND / HACKCLUB HAVEN GAME JAM")
+	_page("CREDITS", "STOMPED / HACKCLUB HAVEN GAME JAM")
 	_label(content, "Shrravan — Lead programmer\nNiyat — Programmer and asset creator\nEngine — Godot Engine\nTeam credits taken from the project README.", 26)
 	_button(content, "BACK TO TITLE", show_title)
 	_focus_first()
@@ -417,7 +417,7 @@ func show_pause() -> void:
 	_button(content, "HOW TO PLAY", func(): open_help("pause"))
 	_button(content, "RESTART RUN", request_restart)
 	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end. Any pending XP save will be retried.", leave_run))
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end. Any pending XP save will be retried.", quit_game))
+	_button(content, "QUIT", func(): confirm("Quit Stomped?", "Your run will end. Any pending XP save will be retried.", quit_game))
 	_focus_first()
 
 func show_results() -> void:
@@ -438,7 +438,7 @@ func show_results() -> void:
 	shop.disabled = not manager.banked
 	_button(content, "SETTINGS", func(): open_settings("results"))
 	_button(content, "MAIN MENU", leave_run)
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your banked progress is saved.", quit_game))
+	_button(content, "QUIT", func(): confirm("Quit Stomped?", "Your banked progress is saved.", quit_game))
 	_focus_first()
 
 func request_restart() -> void:
@@ -623,7 +623,7 @@ func _input(event: InputEvent) -> void:
 			SettingsManager.set_value("setup_complete", true)
 			show_title()
 		"loading_error": leave_run()
-		"title": confirm("Quit Rebound?", "Close the game?", quit_game)
+		"title": confirm("Quit Stomped?", "Close the game?", quit_game)
 
 
 func _bank_before_leaving() -> bool:
@@ -650,7 +650,7 @@ func show_shop(origin: String) -> void:
 	screen = "shop"
 	_page("BOUNCE BACK STRONGER", "UPGRADES / Applied immediately")
 	_label(content, "AVAILABLE XP  %d" % Progression.currency, 34)
-	for key in ["health", "stomp", "cooldown", "rebound"]:
+	for key in ["health", "stomp", "cooldown", "stomped"]:
 		var definition: Dictionary = Progression.UPGRADES[key]
 		var level: int = int(Progression.levels[key])
 		var cap: int = int(definition.cap)
@@ -669,7 +669,7 @@ func show_shop(origin: String) -> void:
 			"stomp":
 				current = "%d stomp damage" % (1 + level)
 				upcoming = "%d stomp damage" % (2 + level)
-			"rebound":
+			"stomped":
 				current = "Unlocked: +1.5 per consecutive bounce, capped at +8" if level > 0 else "Locked: every bounce uses base launch strength"
 				upcoming = "Unlock +1.5 per consecutive bounce, capped at +8"
 			"cooldown":

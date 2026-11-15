@@ -11,3 +11,7 @@ shader_parameter/blade_height = 0.38
 shader_parameter/wind_strength = 0.12
 shader_parameter/wind_speed = 1.5
 shader_parameter/wind_scale = 0.3
+shader_parameter/grow_start = -1.0
+shader_parameter/grow_end = 0.0
+shader_parameter/fade_start = 14.0
+shader_parameter/fade_end = 22.0
