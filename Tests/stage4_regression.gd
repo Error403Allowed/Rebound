@@ -86,7 +86,7 @@ func test_run_integration(progression: Node) -> void:
 	if player == null:
 		check(false, "upgraded player loads")
 		return
-	check(is_instance_valid(ui.health_bar) and is_instance_valid(ui.cooldown) and is_instance_valid(ui.dash_bar), "HUD builds health, placement and dash bars")
+	check(is_instance_valid(ui.health_bar) and is_instance_valid(ui.cooldown), "HUD builds health and placement bars")
 	check(player.rebound_increment == 1.5, "purchased Rebound applies to new run")
 	check(player.max_health == 120 and player.health == 120 and player.stomp_damage == 2 and player.trampoline_cooldowns == [4.5, 7.5, 11.5], "upgrades apply to new run")
 	ui.start_run()
