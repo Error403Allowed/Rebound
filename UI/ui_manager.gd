@@ -285,7 +285,7 @@ func _process(delta: float) -> void:
 		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
 		wave_text.text = "XP: %d" % Progression.currency
 		score_text.text = "Score: %d" % manager.score
-		tier_text.text = '"E" to place trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
+		tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
 		dash_bar.value = player.dash_charge * 100.0
 		dash_text.text = '"Q" dash: %d%%' % int(round(player.dash_charge * 100.0))
 		dash_bar.modulate = Color(0.45, 1.0, 0.75) if player.dash_charge >= 0.999 else Color.WHITE if player.dash_charge >= player.dash_minimum_charge else Color(0.6, 0.65, 0.7)
