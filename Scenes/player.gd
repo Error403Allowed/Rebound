@@ -6,11 +6,9 @@ signal stomped
 
 @export_group("Movement")
 @export var move_speed := 11.0
-@export var sprint_speed := 16.5
 @export var ground_accel := 70.0
 @export var air_accel := 24.0
 @export var air_move_speed := 18.0
-@export var air_sprint_speed := 22.0
 @export var air_drag := 0.35
 @export var jump_speed := 8.0
 @export var gravity: float = 26.0

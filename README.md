@@ -78,7 +78,7 @@ There isn't one. The game runs on an infinite loop, and the goal is to reach the
 | Enemy | Role | Stomps to kill | Speed | Damage | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Slime | Basic chaser | 1 | About player normal speed | Contact damage | Basic enemy |
-| Purple Slime | Speedy | 1 | player move speed | 1.1x slime | Emits a bit of light. Occasional dash *(stretch goal)* |
+| Purple Slime | Speedy | 1 | normal player speed | 1.1x slime | Emits a bit of light. Occasional burst movement *(stretch goal)* |
 | Golem | Tank | 4 | 0.9x player normal speed | 3x slime | Stomp attack stuns player for 0.5s *(stretch goal)* |
 | Skeleton | Ranged *(stretch goal)* | 2 | Player normal speed | Ranged | Shoots fast arrows at the player |
 
