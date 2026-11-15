@@ -2,12 +2,12 @@
 
 importer="mp3"
 type="AudioStreamMP3"
-uid="uid://cgd2omjwdf4mn"
+uid="uid://ycvgjfwafjf7"
 valid=false
 
 [deps]
 
-source_file="res://Assets/Audio/SFX/stomp_impact.mp3"
+source_file="res://Assets/Audio/SFX/trampoline_place.wav"
 
 [params]
 

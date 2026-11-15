@@ -2,12 +2,12 @@
 
 importer="mp3"
 type="AudioStreamMP3"
-uid="uid://bsqj0g2gl2cpv"
+uid="uid://depstby8wju7q"
 valid=false
 
 [deps]
 
-source_file="res://Assets/Audio/SFX/wave_clear.mp3"
+source_file="res://Assets/Audio/SFX/trampoline_launch.wav"
 
 [params]
 

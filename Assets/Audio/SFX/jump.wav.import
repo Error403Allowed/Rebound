@@ -2,12 +2,12 @@
 
 importer="mp3"
 type="AudioStreamMP3"
-uid="uid://bfpql1jpfg4li"
+uid="uid://bqrj2o80y43dg"
 valid=false
 
 [deps]
 
-source_file="res://Assets/Audio/SFX/ui_click.mp3"
+source_file="res://Assets/Audio/SFX/jump.wav"
 
 [params]
 

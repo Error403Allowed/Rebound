@@ -2,12 +2,12 @@
 
 importer="mp3"
 type="AudioStreamMP3"
-uid="uid://c24dvlskyl1gu"
+uid="uid://coll271tiu7qc"
 valid=false
 
 [deps]
 
-source_file="res://Assets/Audio/SFX/player_death.mp3"
+source_file="res://Assets/Audio/SFX/dash.wav"
 
 [params]
 

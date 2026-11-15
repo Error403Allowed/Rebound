@@ -2,12 +2,12 @@
 
 importer="mp3"
 type="AudioStreamMP3"
-uid="uid://v04h2cf1w27v"
+uid="uid://c24dvlskyl1gu"
 valid=false
 
 [deps]
 
-source_file="res://Assets/Audio/SFX/player_damage.mp3"
+source_file="res://Assets/Audio/SFX/player_death.wav"
 
 [params]
 
