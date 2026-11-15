@@ -19,6 +19,7 @@ var last_error: int = OK
 var load_notice := ""
 var next_run_id := 0
 var active_runs: Dictionary = {}
+var credited_runs: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -121,6 +122,7 @@ func upgraded_cooldowns(base: Array[float]) -> Array[float]:
 func begin_run() -> int:
 	next_run_id += 1
 	active_runs[next_run_id] = false
+	credited_runs[next_run_id] = 0
 	return next_run_id
 
 func finish_run(id: int, earned: int, score: int, wave: int) -> int:
@@ -131,13 +133,14 @@ func finish_run(id: int, earned: int, score: int, wave: int) -> int:
 	if earned < 0 or score < 0 or wave < 0:
 		return ERR_INVALID_PARAMETER
 	var before := _snapshot()
-	currency = mini(1000000000, currency + earned)
+	currency = mini(1000000000, currency + maxi(0, earned - int(credited_runs.get(id, 0))))
 	best_score = maxi(best_score, mini(1000000000, score))
 	highest_wave = maxi(highest_wave, mini(1000000000, wave))
 	var error := save_progress()
 	if error != OK:
 		_restore(before)
 		return error
+	credited_runs[id] = maxi(earned, int(credited_runs.get(id, 0)))
 	active_runs[id] = true
 	load_notice = ""
 	changed.emit()
@@ -146,3 +149,20 @@ func finish_run(id: int, earned: int, score: int, wave: int) -> int:
 
 func upgraded_rebound_increment() -> float:
 	return 1.5 if int(levels.get("rebound", 0)) > 0 else 0.0
+
+
+func credit_run_total(id: int, earned: int) -> int:
+	if not active_runs.has(id) or bool(active_runs[id]) or earned < 0:
+		return ERR_INVALID_PARAMETER
+	var paid := int(credited_runs.get(id, 0))
+	if earned <= paid:
+		return OK
+	var before := _snapshot()
+	currency = mini(1000000000, currency + earned - paid)
+	var error := save_progress()
+	if error != OK:
+		_restore(before)
+		return error
+	credited_runs[id] = earned
+	changed.emit()
+	return OK

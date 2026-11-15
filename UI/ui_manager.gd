@@ -6,13 +6,13 @@ const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank XP at the end of a run and invest in upgrades."],
-	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
+	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Earn XP immediately and spend it on upgrades during the run."],
+	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies immediately)\nEscape — pause menu\nR — restart with confirmation"],
 	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 16 / 4 charges / base 5-second cooldown\n2 BLUE: launch 20 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 25 / 2 charges / base 12-second cooldown\nAim at flat ground and press E (left click also works). Placement uses one shared cooldown. Each launch consumes a charge."],
 	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
 	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
 	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],
-	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and XP update during the run. Death freezes gameplay and opens results. Death and confirmed restart or exit bank your run XP once. Spend banked XP between runs. Force-closing an unfinished run does not bank it."]
+	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and XP update during the run. Death freezes gameplay and opens results. XP is credited as you earn it, and purchases apply immediately. Spend banked XP between runs. If a save fails, pending XP is retried on the next award or when leaving the run."]
 ]
 var root_ui: Control
 var content: VBoxContainer
@@ -244,7 +244,7 @@ func start_run() -> void:
 	if not _bank_before_leaving(): return
 	get_tree().paused = false
 	screen = "loading"
-	_page("PREPARING YOUR RUN", "Rebound is a shop unlock. Base launch strength is available to everyone. Charges still apply.")
+	_page("Loading")
 	load_bar = ProgressBar.new()
 	load_bar.custom_minimum_size.y = 10
 	load_bar.show_percentage = false
@@ -283,7 +283,7 @@ func _process(delta: float) -> void:
 		cooldown.max_value = player.trampoline_cooldowns[player.selected_tier]
 		cooldown.value = maxf(0.0, cooldown.max_value - player.cooldown_left)
 		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
-		wave_text.text = "XP: %d" % Progression.currency
+		wave_text.text = "XP: %d%s" % [Progression.currency, " (save pending)" if manager.bank_error != OK else ""]
 		score_text.text = "Score: %d" % manager.score
 		tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
 		dash_bar.value = player.dash_charge * 100.0
@@ -366,7 +366,7 @@ func show_game() -> void:
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
-	var hint := _hud_label(hud, '"Esc" to open settings', 14)
+	var hint := _hud_label(hud, '"Esc" to pause', 14)
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.offset_left = 20
 	hint.offset_top = -40
@@ -414,8 +414,8 @@ func show_pause() -> void:
 	_button(content, "SETTINGS", func(): open_settings("pause"))
 	_button(content, "HOW TO PLAY", func(): open_help("pause"))
 	_button(content, "RESTART RUN", request_restart)
-	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end and earned XP will be banked.", leave_run))
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end and earned XP will be banked.", quit_game))
+	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end. Any pending XP save will be retried.", leave_run))
+	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end. Any pending XP save will be retried.", quit_game))
 	_focus_first()
 
 func show_results() -> void:
@@ -440,7 +440,7 @@ func show_results() -> void:
 	_focus_first()
 
 func request_restart() -> void:
-	confirm("Restart run?", "End this run, bank earned XP, and begin again?", start_run)
+	confirm("Restart run?", "End this run, save any pending XP, and begin again?", start_run)
 
 func leave_run() -> void:
 	if not _bank_before_leaving(): return
@@ -492,7 +492,7 @@ func open_settings(origin: String) -> void:
 				_slider(box, "Mouse sensitivity", "mouse_sensitivity", 0.0002, 0.01, 0.0001)
 				_toggle(box, "Invert vertical look", "invert_y")
 				_slider(box, "Base field of view", "base_fov", 60, 110, 1)
-				_toggle(box, "Dynamic sprint/jump FOV", "dynamic_fov")
+				_toggle(box, "Dynamic movement FOV", "dynamic_fov")
 				_slider(box, "FOV effect strength", "fov_strength", 0, 1.5, 0.05)
 			"Audio":
 				_slider(box, "Master volume", "master_volume", 0, 1, 0.05)
@@ -510,7 +510,7 @@ func open_settings(origin: String) -> void:
 				_toggle(box, "Disable damage flashing", "reduced_flashing")
 				_label(box, "Roles have text labels as well as colours. Menus support Tab/arrows, Enter and Escape.", 20)
 			"Controls":
-				_label(box, "WASD — Move\nMouse — Look\nShift — Sprint forward\nSpace — Jump\nQ — Charged dash (ground and air)\n1 / 2 / 3 — Select trampoline\nE / Left click — Place\nF — Upgrades (next run)\nEscape — Settings / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
+				_label(box, "WASD — Move\nMouse — Look\nSpace — Jump\nQ — Charged dash (ground and air)\n1 / 2 / 3 — Select trampoline\nE / Left click — Place\nF — Upgrades (immediate)\nEscape — Pause / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
 			"Data":
 				_label(box, "Settings file: user://settings.cfg\nPreferences and permanent progression are saved separately.", 22)
 				_button(box, "RESET SETTINGS", func(): confirm("Reset preferences?", "Restore default preferences? Your run is not reset.", func():
@@ -640,7 +640,7 @@ func quit_game() -> void:
 func show_shop(origin: String) -> void:
 	return_screen = origin
 	screen = "shop"
-	_page("BOUNCE BACK STRONGER", "UPGRADES / Applied at the start of your next run")
+	_page("BOUNCE BACK STRONGER", "UPGRADES / Applied immediately")
 	_label(content, "AVAILABLE XP  %d" % Progression.currency, 34)
 	for key in ["health", "stomp", "cooldown", "rebound"]:
 		var definition: Dictionary = Progression.UPGRADES[key]
@@ -678,6 +678,13 @@ func show_shop(origin: String) -> void:
 	_focus_first()
 
 func _purchase_upgrade(key: String, origin: String) -> void:
+	var manager := _manager()
+	if manager != null and not manager.banked:
+		manager.bank_error = Progression.credit_run_total(manager.run_id, manager.currency)
+		if manager.bank_error != OK:
+			show_shop(origin)
+			_label(content, "XP could not be saved. Purchase cancelled; retry when saving works.", 22)
+			return
 	var error: int = Progression.purchase(key)
 	show_shop(origin)
 	_label(content, "UPGRADE PURCHASED AND SAVED" if error == OK else "Purchase not completed: " + error_string(error), 22)
