@@ -1,7 +1,7 @@
 extends Node
 
 const ENEMY_DEATH := preload("res://Assets/Audio/SFX/enemy_kill.mp3")
-const PLAYER_HIT := preload("res://Assets/Audio/SFX/player_hit.mp3")
+const PLAYER_HIT_PATH := "res://Assets/Audio/SFX/player_hit.mp3"
 
 var _player: AudioStreamPlayer
 var _hit_player: AudioStreamPlayer
@@ -18,7 +18,7 @@ func _ready() -> void:
 	add_child(_hit_player)
 
 func play_player_hit() -> void:
-	_hit_player.stream = PLAYER_HIT
+	_hit_player.stream = load(PLAYER_HIT_PATH)
 	_hit_player.pitch_scale = randf_range(0.92, 1.08)
 	_hit_player.play()
 
