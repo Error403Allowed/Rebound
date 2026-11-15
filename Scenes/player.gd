@@ -490,6 +490,35 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	area.body_entered.connect(_on_tramp_entered.bind(area))
 	get_tree().current_scene.add_child(area)
 	area.global_position = pos
+	_clear_grass_around(pos)
+
+
+func _clear_grass_around(pos: Vector3) -> void:
+	var clear_radius := tramp_radius + 0.65
+	for node in get_tree().current_scene.find_children("*", "MultiMeshInstance3D", true, false):
+		if not node is MultiMeshInstance3D:
+			continue
+		var grass := node as MultiMeshInstance3D
+		var mesh := grass.multimesh.mesh
+		if mesh == null:
+			continue
+		var instance_count := grass.multimesh.instance_count
+		var kept := PackedVector3Array()
+		for index in instance_count:
+			var local := grass.multimesh.get_instance_transform(index)
+			var world := grass.global_transform * local
+			if world.origin.distance_to(pos) > clear_radius:
+				kept.append(local.origin)
+		if kept.size() == instance_count:
+			continue
+		var replacement := MultiMesh.new()
+		replacement.transform_format = MultiMesh.TRANSFORM_3D
+		replacement.mesh = mesh
+		replacement.instance_count = kept.size()
+		for index in kept.size():
+			var transform := Transform3D(Basis.IDENTITY, kept[index])
+			replacement.set_instance_transform(index, transform)
+		grass.multimesh = replacement
 
 
 func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
