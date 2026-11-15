@@ -74,7 +74,8 @@ func update_dead(amount: float) -> void:
 	material.set_shader_parameter("dead_amount", clampf(amount, 0.0, 1.0))
 
 func _process(delta: float) -> void:
-	if bool(SettingsManager.get_value("reduced_motion")) or bool(SettingsManager.get_value("reduced_flashing")):
+	var settings := get_node_or_null("/root/SettingsManager")
+	if settings != null and (bool(settings.get_value("reduced_motion")) or bool(settings.get_value("reduced_flashing"))):
 		material.set_shader_parameter("distortion_strength", 0.0)
 		material.set_shader_parameter("pulse", 0.0)
 		return
