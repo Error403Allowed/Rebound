@@ -72,6 +72,7 @@ func _process(delta: float) -> void:
 			_start_wave()
 	else:
 		# enough of the wave is dead: move on, even if some enemies are still alive
+		_update_music()
 		if wave_kills >= wave_needed:
 			_end_wave()
 		elif to_spawn > 0 and alive < max_alive:
@@ -83,6 +84,24 @@ func _process(delta: float) -> void:
 				spawn_timer = spawn_interval
 	_update_hud()
 
+
+func _update_music() -> void:
+	if player == null:
+		return
+	var danger := alive >= 7 or wave >= 8 or float(player.health) / maxf(1.0, float(player.max_health)) < 0.35
+	if danger:
+		MusicManager.play_danger()
+	else:
+		MusicManager.play_combat()
+
+func _update_music() -> void:
+	if player == null:
+		return
+	var danger := alive >= 7 or wave >= 8 or float(player.health) / maxf(1.0, float(player.max_health)) < 0.35
+	if danger:
+		MusicManager.play_danger()
+	else:
+		MusicManager.play_combat()
 
 func _start_wave() -> void:
 	wave += 1
