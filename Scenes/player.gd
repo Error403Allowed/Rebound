@@ -488,13 +488,14 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	area.add_child(collision)
 
 	area.body_entered.connect(_on_tramp_entered.bind(area))
+	area.set_meta("cleared_grass", _clear_grass_around(pos))
 	get_tree().current_scene.add_child(area)
 	area.global_position = pos
-	_clear_grass_around(pos)
 
 
-func _clear_grass_around(pos: Vector3) -> void:
+func _clear_grass_around(pos: Vector3) -> Array:
 	var clear_radius := tramp_radius + 0.65
+	var removed: Array = []
 	for node in get_tree().current_scene.find_children("*", "MultiMeshInstance3D", true, false):
 		if not node is MultiMeshInstance3D:
 			continue
@@ -503,21 +504,46 @@ func _clear_grass_around(pos: Vector3) -> void:
 		if mesh == null:
 			continue
 		var instance_count := grass.multimesh.instance_count
-		var kept := PackedVector3Array()
+		var kept: Array[Transform3D] = []
+		var removed_here: Array[Transform3D] = []
 		for index in instance_count:
 			var local := grass.multimesh.get_instance_transform(index)
 			var world := grass.global_transform * local
-			if world.origin.distance_to(pos) > clear_radius:
-				kept.append(local.origin)
-		if kept.size() == instance_count:
+			if world.origin.distance_to(pos) <= clear_radius:
+				removed_here.append(local)
+			else:
+				kept.append(local)
+		if removed_here.is_empty():
 			continue
+		removed.append({"grass": grass, "mesh": mesh, "transforms": removed_here})
 		var replacement := MultiMesh.new()
 		replacement.transform_format = MultiMesh.TRANSFORM_3D
 		replacement.mesh = mesh
 		replacement.instance_count = kept.size()
 		for index in kept.size():
-			var transform := Transform3D(Basis.IDENTITY, kept[index])
-			replacement.set_instance_transform(index, transform)
+			replacement.set_instance_transform(index, kept[index])
+		grass.multimesh = replacement
+	return removed
+
+
+func _restore_grass_around(cleared: Array) -> void:
+	for entry in cleared:
+		var grass := entry["grass"] as MultiMeshInstance3D
+		if grass == null or not is_instance_valid(grass):
+			continue
+		var mesh := entry["mesh"] as Mesh
+		var removed := entry["transforms"] as Array
+		var current: Array[Transform3D] = []
+		for index in grass.multimesh.instance_count:
+			current.append(grass.multimesh.get_instance_transform(index))
+		for transform in removed:
+			current.append(transform)
+		var replacement := MultiMesh.new()
+		replacement.transform_format = MultiMesh.TRANSFORM_3D
+		replacement.mesh = mesh
+		replacement.instance_count = current.size()
+		for index in current.size():
+			replacement.set_instance_transform(index, current[index])
 		grass.multimesh = replacement
 
 
@@ -541,6 +567,7 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 	if label != null:
 		label.text = str(charges)
 	if charges <= 0:
+		_restore_grass_around(area.get_meta("cleared_grass"))
 		area.queue_free()
 
 
