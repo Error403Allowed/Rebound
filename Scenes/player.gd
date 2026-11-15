@@ -408,19 +408,48 @@ func _spawn_trampoline(pos: Vector3) -> void:
 	area.set_meta("tier", 0)
 	area.set_meta("charges", trampoline_charge_count)
 
-	# black mat (lower than the rim)
+	# Opaque dark mat, clearly separated from grass.
 	var mat_inst := MeshInstance3D.new()
 	mat_inst.mesh = mat_mesh
-	mat_inst.position.y = 0.13
+	mat_inst.position.y = 0.14
 	mat_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat_material := StandardMaterial3D.new()
+	mat_material.albedo_color = Color(0.06, 0.07, 0.09)
+	mat_material.roughness = 0.85
+	mat_material.metallic = 0.0
+	mat_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat_inst.material_override = mat_material
 	area.add_child(mat_inst)
 
-	# blue padded rim, its centre line at half the rim thickness so it sits on the ground
+	# High-contrast padded rim makes the trampoline read as an object, not grass.
 	var rim_inst := MeshInstance3D.new()
 	rim_inst.mesh = rim_mesh
 	rim_inst.position.y = RIM_THICKNESS * 0.5
 	rim_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var rim_material := StandardMaterial3D.new()
+	rim_material.albedo_color = Color(0.05, 0.65, 1.0)
+	rim_material.roughness = 0.35
+	rim_material.metallic = 0.0
+	rim_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	rim_inst.material_override = rim_material
 	area.add_child(rim_inst)
+
+	# Thin dark contact shadow anchors the trampoline to the ground.
+	var shadow_mesh := CylinderMesh.new()
+	shadow_mesh.top_radius = tramp_radius * 1.08
+	shadow_mesh.bottom_radius = tramp_radius * 1.08
+	shadow_mesh.height = 0.01
+	var shadow_inst := MeshInstance3D.new()
+	shadow_inst.mesh = shadow_mesh
+	shadow_inst.position.y = 0.006
+	shadow_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var shadow_material := StandardMaterial3D.new()
+	shadow_material.albedo_color = Color(0.0, 0.0, 0.0, 0.32)
+	shadow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	shadow_inst.material_override = shadow_material
+	area.add_child(shadow_inst)
 
 	var charge_label := Label3D.new()
 	charge_label.name = "ChargeLabel"

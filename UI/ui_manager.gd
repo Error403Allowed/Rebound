@@ -358,14 +358,23 @@ func show_game() -> void:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tier_text = _hud_label(right, '"E" to place trampoline')
 	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var dash_title := _hud_label(right, "DASH")
-	dash_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cooldown = _hud_bar(right, Color(0.4, 0.75, 1.0), 10)
-	cooldown.max_value = 1.0
-	cooldown.value = 1.0
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
+	var dash_container := VBoxContainer.new()
+	hud.add_child(dash_container)
+	dash_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	dash_container.offset_left = -160.0
+	dash_container.offset_right = 160.0
+	dash_container.offset_top = -70.0
+	dash_container.offset_bottom = -28.0
+	dash_container.add_theme_constant_override("separation", 4)
+	dash_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dash_title := _hud_label(dash_container, "DASH", 14)
+	dash_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cooldown = _hud_bar(dash_container, Color(0.4, 0.75, 1.0), 10)
+	cooldown.max_value = 1.0
+	cooldown.value = 1.0
 	var hint := _hud_label(hud, '"Esc" to pause', 14)
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.offset_left = 20
