@@ -282,11 +282,16 @@ func _process(delta: float) -> void:
 		health_bar.value = player.health
 		cooldown.max_value = player.trampoline_cooldowns[player.selected_tier]
 		cooldown.value = maxf(0.0, cooldown.max_value - player.cooldown_left)
-		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
-		wave_text.text = "XP: %d%s" % [Progression.currency, " (save pending)" if manager.bank_error != OK else ""]
-		score_text.text = "Score: %d" % manager.score
-		tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
-		fps_text.text = "%d FPS" % Engine.get_frames_per_second() if bool(SettingsManager.get_value("show_fps")) else ""
+		if health_text != null:
+			health_text.text = "Health: %d/%d" % [player.health, player.max_health]
+		if wave_text != null:
+			wave_text.text = "XP: %d%s" % [Progression.currency, " (save pending)" if manager.bank_error != OK else ""]
+		if score_text != null:
+			score_text.text = "Score: %d" % manager.score
+		if tier_text != null:
+			tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
+		if fps_text != null:
+			fps_text.text = "%d FPS" % Engine.get_frames_per_second() if bool(SettingsManager.get_value("show_fps")) else ""
 
 func _enter_game() -> void:
 	for attempt in 120:
