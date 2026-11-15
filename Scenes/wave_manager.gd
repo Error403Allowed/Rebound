@@ -10,7 +10,7 @@ extends Node
 @export var count_per_wave := 3
 @export var max_alive := 25
 @export var heal_between_waves := 0
-@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.65   # share of a wave you must kill to move on
+@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.5   # share of a wave you must kill to move on
 
 @export_group("Spawning")
 @export var spawn_edge_inset := 2.0
