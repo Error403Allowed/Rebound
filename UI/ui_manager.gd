@@ -361,11 +361,11 @@ func show_game() -> void:
 	right.offset_top = 20
 	right.add_theme_constant_override("separation", 8)
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tier_text = _hud_label(right, '"E" to place trampoline')
-	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
+	tier_text = _hud_label(right, '"E" to place trampoline')
+	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var hint := _hud_label(hud, '"Esc" to pause', 14)
 	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.offset_left = 20
