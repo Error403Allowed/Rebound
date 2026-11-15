@@ -84,6 +84,8 @@ var preview_mat: StandardMaterial3D
 var hud: Label
 var crosshair: Label
 var screen_effects: CanvasLayer
+var hit_shake_time := 0.0
+var hit_shake_strength := 0.0
 
 
 func _ready() -> void:
@@ -268,6 +270,7 @@ func _physics_process(delta: float) -> void:
 
 	_update_preview()
 	_update_hud()
+	_update_hit_shake(delta)
 	_update_fov(delta)
 
 
@@ -291,6 +294,8 @@ func take_damage(amount: int, attacker: Node = null) -> void:
 	health = maxi(0, health - amount)
 	hit_timer = hit_invulnerability
 	health_changed.emit(health)
+	SFXManager.play_player_hit()
+	_start_hit_shake()
 	_show_damage_flash()
 	if health <= 0:
 		place_mode = false
@@ -582,6 +587,19 @@ func _update_hud() -> void:
 	hud.text = "HP: %d / %d\n%s\nWASD move | Space jump | Q dash | E place mode | Esc pause | R restart" % [health, max_health, status]
 
 
+func _update_hit_shake(delta: float) -> void:
+	if hit_shake_time > 0.0:
+		hit_shake_time = maxf(0.0, hit_shake_time - delta)
+		var progress := hit_shake_time / 0.28
+		var offset := Vector3(
+			randf_range(-1.0, 1.0),
+			randf_range(-1.0, 1.0),
+			0.0
+		) * hit_shake_strength * progress
+		camera.position = camera.position.lerp(offset, 0.65)
+	else:
+		camera.position = camera.position.lerp(Vector3.ZERO, 1.0 - exp(-14.0 * delta))
+
 func _update_fov(delta: float) -> void:
 	if not bool(SettingsManager.get_value("dynamic_fov")) or bool(SettingsManager.get_value("reduced_motion")):
 		camera.fov = base_fov
@@ -598,6 +616,12 @@ func _update_fov(delta: float) -> void:
 	if dash_left <= 0.0:
 		dash_fov_kick = lerpf(dash_fov_kick, 0.0, 1.0 - exp(-10.0 * delta))
 
+
+func _start_hit_shake() -> void:
+	if bool(SettingsManager.get_value("reduced_motion")):
+		return
+	hit_shake_time = 0.28
+	hit_shake_strength = 0.09
 
 func _show_damage_flash() -> void:
 	if not bool(SettingsManager.get_value("damage_flash")) or bool(SettingsManager.get_value("reduced_flashing")):
