@@ -27,6 +27,9 @@ func _make_player(stream: AudioStream) -> AudioStreamPlayer:
 	player.stream = stream
 	player.bus = "Master"
 	player.volume_db = SILENCE_DB
+	if stream is AudioStreamMP3:
+		stream.loop = true
+	player.finished.connect(func(): player.play())
 	add_child(player)
 	return player
 

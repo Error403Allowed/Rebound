@@ -7,10 +7,10 @@ extends Node
 @export var first_wave_delay := 5.0
 @export var time_between_waves := 6.0
 @export var base_count := 5
-@export var count_per_wave := 3
-@export var max_alive := 25
+@export var count_per_wave := 12
+@export var max_alive := 120
 @export var heal_between_waves := 0
-@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.5   # share of a wave you must kill to move on
+@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.55   # share of a wave you must kill to move on
 
 @export_group("Spawning")
 @export var spawn_edge_inset := 2.0
@@ -99,7 +99,7 @@ func _update_music() -> void:
 func _start_wave() -> void:
 	wave += 1
 	in_break = false
-	to_spawn = base_count + wave * count_per_wave
+	to_spawn = mini(500, base_count + wave * count_per_wave)
 	wave_total = to_spawn
 	wave_needed = maxi(1, ceili(wave_total * clear_fraction))
 	wave_kills = 0
