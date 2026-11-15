@@ -187,6 +187,7 @@ func show_title() -> void:
 	_button(content, "HOW TO PLAY", func(): open_help("title"))
 	_button(content, "SETTINGS", func(): open_settings("title"))
 	_button(content, "CREDITS", show_credits)
+	_button(content, "CLEAR ALL STATS", confirm_clear_stats)
 	_button(content, "QUIT", func(): confirm("Quit Stomped?", "Close the game?", func(): get_tree().quit()))
 	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     XP  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 18)
 	if Progression.load_notice != "": _label(content, Progression.load_notice, 18)
@@ -417,6 +418,7 @@ func show_pause() -> void:
 	_button(content, "HOW TO PLAY", func(): open_help("pause"))
 	_button(content, "RESTART RUN", request_restart)
 	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end. Any pending XP save will be retried.", leave_run))
+	_button(content, "CLEAR ALL STATS", confirm_clear_stats)
 	_button(content, "QUIT", func(): confirm("Quit Stomped?", "Your run will end. Any pending XP save will be retried.", quit_game))
 	_focus_first()
 
