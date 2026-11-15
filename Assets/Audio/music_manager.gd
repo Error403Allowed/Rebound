@@ -44,6 +44,9 @@ func play_menu() -> void:
 	_fade_tween.tween_property(_game_player, "volume_db", SILENCE_DB, CROSSFADE_SECONDS)
 	_fade_tween.chain().tween_callback(_game_player.stop)
 
+func play_combat() -> void:
+	play_gameplay()
+
 func play_gameplay() -> void:
 	if _fade_tween and _fade_tween.is_valid():
 		_fade_tween.kill()

@@ -100,7 +100,7 @@ func make_tuft(blades: int, spread: float, hmin: float, hmax: float,
 		var base := Vector3(cos(a), 0.0, sin(a)) * spread * sqrt(randf())
 		var h := randf_range(hmin, hmax)
 		var w := randf_range(wmin, wmax)
-		var curve := randf_range(-0.22, 0.22)
+		var _curve := randf_range(-0.22, 0.22)
 		var rot := Basis(Vector3.UP, randf() * TAU) * Basis(Vector3.RIGHT, randf_range(0.0, 0.45))
 
 		var verts: Array[Vector3]
