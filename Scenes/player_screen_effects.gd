@@ -37,24 +37,24 @@ void fragment() {
 	float damage = clamp(max(low, dead_amount), 0.0, 1.0);
 	float edge = smoothstep(0.18, 1.15, radius);
 	float angle = atan(centre.y, centre.x);
-	float sway = sin(time * 2.3 + radius * 4.0) * 0.0035;
-	float roll = sin(time * 1.7) * 0.0025;
-	float wobble = sin(time * 8.0 + radius * 17.0 + angle * 2.0) * 0.0022;
+	float sway = sin(time * 2.3 + radius * 4.0) * 0.0125;
+	float roll = sin(time * 1.7) * 0.0095;
+	float wobble = sin(time * 8.0 + radius * 17.0 + angle * 2.0) * 0.0065;
 	vec2 dizzy = vec2(cos(angle), sin(angle)) * (sway + roll) + vec2(wobble, -wobble * 0.6);
-	uv += dizzy * distortion_strength * (0.35 + edge * 0.65);
-	float blur_amount = (0.9 * damage * (0.35 + edge * 0.65) + pulse * damage * 1.4) * distortion_strength;
+	uv += dizzy * distortion_strength * (0.55 + edge * 0.45);
+	float blur_amount = (0.9 * damage * (0.35 + edge * 0.65) + pulse * damage * 0.5) * distortion_strength;
 	vec3 colour = blur(screen_texture, uv, blur_amount);
 	float chroma = 0.0012 * damage * distortion_strength * (0.3 + edge);
 	float red = texture(screen_texture, uv + vec2(chroma, 0.0)).r;
 	float blue = texture(screen_texture, uv - vec2(chroma, 0.0)).b;
 	colour.r = mix(colour.r, red, 0.55);
 	colour.b = mix(colour.b, blue, 0.55);
-	float vignette = edge * (0.35 * damage + 0.35 * pulse * damage + 0.55 * dead_amount);
+	float vignette = edge * (0.35 * damage + 0.14 * pulse * damage + 0.55 * dead_amount);
 	colour = mix(colour, vec3(0.55, 0.03, 0.03), clamp(vignette, 0.0, 1.0));
 	float desaturate = clamp(0.22 * low + 0.75 * dead_amount, 0.0, 1.0);
 	float grey = dot(colour, vec3(0.299, 0.587, 0.114));
 	colour = mix(colour, vec3(grey), desaturate);
-	colour *= 1.0 - 0.22 * dead_amount - 0.16 * pulse * damage;
+	colour *= 1.0 - 0.22 * dead_amount - 0.05 * pulse * damage;
 	COLOR = vec4(colour, 1.0);
 }
 """
@@ -88,4 +88,4 @@ func _process(delta: float) -> void:
 		beat = pow(beat, 1.6)
 	material.set_shader_parameter("time", Time.get_ticks_msec() * 0.001)
 	material.set_shader_parameter("pulse", beat)
-	material.set_shader_parameter("distortion_strength", clampf(pow(low, 1.35) * 1.0 + float(dead) * 0.35, 0.0, 1.0))
+	material.set_shader_parameter("distortion_strength", clampf(smoothstep(0.15, 0.75, low) * 1.0 + float(dead) * 0.35, 0.0, 1.0))
