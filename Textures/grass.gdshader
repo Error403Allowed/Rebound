@@ -1,12 +1,12 @@
 shader_type spatial;
 render_mode cull_disabled, specular_disabled, diffuse_lambert;
 
-uniform vec3 color_base : source_color = vec3(0.10, 0.30, 0.06);
-uniform vec3 color_tip  : source_color = vec3(0.50, 0.78, 0.22);
+uniform vec3 color_base : source_color = vec3(0.09, 0.28, 0.06);
+uniform vec3 color_tip  : source_color = vec3(0.58, 0.83, 0.25);
 uniform float blade_height = 0.6;
-uniform float wind_strength = 0.25;
+uniform float wind_strength = 0.35;
 uniform float wind_speed = 1.5;
-uniform float wind_scale = 0.3;
+uniform float wind_scale = 0.45;
 
 // distance fade, set per layer from the Grass script
 uniform float grow_start = -1.0;   // blades grow in between grow_start and grow_end
@@ -15,6 +15,7 @@ uniform float fade_start = 14.0;   // blades shrink away between fade_start and 
 uniform float fade_end = 22.0;
 
 varying float v_height;
+varying vec3 v_world;
 
 void vertex() {
     v_height = clamp(VERTEX.y / blade_height, 0.0, 1.0);

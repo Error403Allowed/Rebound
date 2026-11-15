@@ -7,10 +7,10 @@ extends Node3D
 @export var edge_margin := 0.3
 
 @export_group("Near layer (detailed)")
-@export var near_spacing := 0.35
+@export var near_spacing := 0.28
 @export var near_fade_start := 14.0
 @export var near_fade_end := 22.0
-@export var near_blades := 7
+@export var near_blades := 9
 
 @export_group("Far layer (cheap)")
 @export var far_spacing := 0.9
@@ -18,12 +18,12 @@ extends Node3D
 @export var far_grow_end := 22.0
 @export var far_fade_start := 40.0
 @export var far_fade_end := 50.0
-@export var far_blades := 4
+@export var far_blades := 5
 
 
 func _ready() -> void:
-	var near_mesh := make_tuft(near_blades, 0.25, 0.3, 0.6, 0.03, 0.05, true)
-	var far_mesh := make_tuft(far_blades, 0.5, 0.3, 0.6, 0.05, 0.08, false)
+	var near_mesh := make_tuft(near_blades, 0.3, 0.35, 0.75, 0.025, 0.055, true)
+	var far_mesh := make_tuft(far_blades, 0.55, 0.3, 0.65, 0.04, 0.08, false)
 
 	# each layer gets its own copy of the material with its own fade distances
 	var near_mat := grass_material.duplicate() as ShaderMaterial
@@ -100,7 +100,8 @@ func make_tuft(blades: int, spread: float, hmin: float, hmax: float,
 		var base := Vector3(cos(a), 0.0, sin(a)) * spread * sqrt(randf())
 		var h := randf_range(hmin, hmax)
 		var w := randf_range(wmin, wmax)
-		var rot := Basis(Vector3.UP, randf() * TAU) * Basis(Vector3.RIGHT, randf_range(0.0, 0.35))
+		var curve := randf_range(-0.22, 0.22)
+		var rot := Basis(Vector3.UP, randf() * TAU) * Basis(Vector3.RIGHT, randf_range(0.0, 0.45))
 
 		var verts: Array[Vector3]
 		if two_segments:

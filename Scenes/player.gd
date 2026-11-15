@@ -44,6 +44,7 @@ signal stomped
 @onready var camera: Camera3D = $Head/Camera3D
 
 const TRAMP_HEIGHT := 0.3
+const SCREEN_EFFECTS = preload("res://Scenes/player_screen_effects.gd")
 const TRAMP_COLOR := Color(0.1, 0.4, 1.0)         # blue rim
 const TRAMP_MAT_COLOR := Color(0.03, 0.03, 0.04)  # black mat
 const RIM_THICKNESS := 0.3                        # width of the blue rim
@@ -82,6 +83,7 @@ var preview: MeshInstance3D
 var preview_mat: StandardMaterial3D
 var hud: Label
 var crosshair: Label
+var screen_effects: CanvasLayer
 
 
 func _ready() -> void:
@@ -95,6 +97,7 @@ func _ready() -> void:
 	rebound_increment = Progression.upgraded_rebound_increment()
 	health = max_health
 	base_fov = camera.fov
+	_on_health_changed(health)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 	# fill the stand-in lists (three identical entries, matching the old three tiers)
@@ -129,6 +132,21 @@ func _ready() -> void:
 	cross.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	layer.add_child(cross)
 	add_child(layer)
+	screen_effects = SCREEN_EFFECTS.new()
+	add_child(screen_effects)
+	health_changed.connect(_on_health_changed)
+	died.connect(_on_died)
+
+
+func _on_health_changed(current: int) -> void:
+	if is_instance_valid(screen_effects):
+		screen_effects.update_health(float(current) / maxf(1.0, float(max_health)))
+
+
+func _on_died() -> void:
+	if is_instance_valid(screen_effects):
+		var tween := create_tween()
+		tween.tween_method(screen_effects.update_dead, 0.0, 1.0, 0.55)
 
 
 # built once and shared by every trampoline, so extra trampolines cost almost nothing
