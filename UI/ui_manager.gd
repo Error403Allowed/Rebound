@@ -26,6 +26,7 @@ var wave_text: Label
 var score_text: Label
 var tier_text: Label
 var cooldown: ProgressBar
+var trampoline_bar: ProgressBar
 var fps_text: Label
 var elapsed := 0.0
 var modal: ConfirmationDialog
@@ -254,8 +255,12 @@ func start_run() -> void:
 
 func _process(delta: float) -> void:
 	var active_player := _player()
-	if active_player != null and cooldown != null:
-		cooldown.value = clampf(active_player.dash_charge, 0.0, 1.0)
+	if active_player != null:
+		if cooldown != null:
+			cooldown.value = clampf(active_player.dash_charge, 0.0, 1.0)
+		if trampoline_bar != null:
+			var recharge := 1.0 - clampf(active_player.cooldown_left / maxf(0.01, active_player.trampoline_cooldown), 0.0, 1.0)
+			trampoline_bar.value = recharge
 	if loading:
 		var progress: Array = []
 		var status := ResourceLoader.load_threaded_get_status(ARENA, progress)
@@ -356,8 +361,11 @@ func show_game() -> void:
 	right.offset_top = 20
 	right.add_theme_constant_override("separation", 8)
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tier_text = _hud_label(right, '"E" to place trampoline')
+	tier_text = _hud_label(right, "TRAMPOLINE", 14)
 	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	trampoline_bar = _hud_bar(right, Color(0.25, 0.8, 1.0), 10)
+	trampoline_bar.max_value = 1.0
+	trampoline_bar.value = 1.0
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
