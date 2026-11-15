@@ -177,7 +177,7 @@ func show_title() -> void:
 	screen = "title"
 	get_tree().paused = false
 	_page("REBOUND")
-	_button(content, "START SURVIVAL", start_run)
+	_button(content, "PLAY", start_run)
 	_button(content, "UPGRADES", func(): show_shop("title"))
 	_button(content, "HOW TO PLAY", func(): open_help("title"))
 	_button(content, "SETTINGS", func(): open_settings("title"))
@@ -190,7 +190,7 @@ func show_title() -> void:
 func _show_welcome() -> void:
 	screen = "welcome"
 	_page("WELCOME TO REBOUND", "Set up your experience before your first run.")
-	_label(content, "Launch from coloured trampolines, land within 1.5 metres of enemies, and survive endless waves. Settings can be reopened at any time from pause.", 28)
+	_label(content, "Launch from trampolines, crush enemies, and survive endless waves. Settings can be reopened at any time from pause.", 28)
 	_button(content, "ACCESSIBILITY & CAMERA SETTINGS", func(): open_settings("welcome"))
 	_button(content, "LEARN TO PLAY", func():
 		SettingsManager.set_value("setup_complete", true)
