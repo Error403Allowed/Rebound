@@ -29,8 +29,6 @@ var wave_text: Label
 var score_text: Label
 var tier_text: Label
 var cooldown: ProgressBar
-var dash_bar: ProgressBar
-var dash_text: Label
 var dash_bar: TextureProgressBar
 var dash_text: Label
 var fps_text: Label
