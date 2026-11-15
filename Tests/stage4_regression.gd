@@ -63,8 +63,8 @@ func run_tests() -> void:
 	progression.storage_path = FIXTURE
 	progression.load_progress()
 	check(progression.upgraded_rebound_increment() == 0.0, "legacy save defaults Rebound to locked")
-	check(progression.price("rebound") == 55, "Rebound costs 55 experience")
-	check(progression.purchase("rebound") != OK and progression.levels.rebound == 0, "Rebound requires enough experience")
+	check(progression.price("rebound") == 55, "Rebound costs 55 XP")
+	check(progression.purchase("rebound") != OK and progression.levels.rebound == 0, "Rebound requires enough XP")
 	id = progression.begin_run()
 	check(progression.finish_run(id, 55, 0, 0) == OK, "fund Rebound using isolated fixture")
 	check(progression.purchase("rebound") == OK and progression.currency == 0 and progression.upgraded_rebound_increment() == 1.5, "Rebound unlock purchased and saved")

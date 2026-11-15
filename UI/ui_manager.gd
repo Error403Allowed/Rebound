@@ -6,13 +6,13 @@ const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank experience at the end of a run and invest in upgrades."],
-	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked experience; applies next run)\nEscape — settings\nR — restart with confirmation"],
+	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank XP at the end of a run and invest in upgrades."],
+	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
 	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 16 / 4 charges / base 5-second cooldown\n2 BLUE: launch 20 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 25 / 2 charges / base 12-second cooldown\nAim at flat ground and press E (left click also works). Placement uses one shared cooldown. Each launch consumes a charge."],
-	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 experience to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
+	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
 	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
 	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],
-	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and experience update during the run. Death freezes gameplay and opens results. Death and confirmed restart or exit bank your run experience once. Spend banked experience between runs. Force-closing an unfinished run does not bank it."]
+	["SURVIVE THE WAVE", "Clear all living and pending enemies to finish a wave. Use the break to prepare. Score and XP update during the run. Death freezes gameplay and opens results. Death and confirmed restart or exit bank your run XP once. Spend banked XP between runs. Force-closing an unfinished run does not bank it."]
 ]
 var root_ui: Control
 var content: VBoxContainer
@@ -63,6 +63,7 @@ func _player() -> Node:
 func _label(parent: Node, text: String, size: int = 22) -> Label:
 	var item := Label.new()
 	item.text = text.left(1).to_upper() + text.substr(1).to_lower() if text == text.to_upper() else text
+	item.text = item.text.replace("Xp", "XP").replace(" xp", " XP")
 	item.add_theme_font_size_override("font_size", int(size * (1.18 if bool(SettingsManager.get_value("large_text")) else 1.0)))
 	item.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(item)
@@ -71,6 +72,7 @@ func _label(parent: Node, text: String, size: int = 22) -> Label:
 func _button(parent: Node, text: String, action: Callable) -> Button:
 	var item := Button.new()
 	item.text = text.left(1).to_upper() + text.substr(1).to_lower() if text == text.to_upper() else text
+	item.text = item.text.replace("Xp", "XP").replace(" xp", " XP")
 	item.custom_minimum_size.y = 48
 	item.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	item.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -135,7 +137,6 @@ func _page(title: String, subtitle: String = "") -> void:
 	else:
 		inset.add_child(scroll)
 		scroll.add_child(content)
-	_label(content, "Rebound / " + screen.replace("_", " ").capitalize(), 16).modulate = Color(0.48, 0.85, 0.75)
 	_label(content, title, 48).modulate = Color.WHITE if screen == "title" else Color(0.85, 0.77, 0.6)
 	if not subtitle.is_empty():
 		_label(content, subtitle, 20).modulate = Color(0.7, 0.78, 0.86)
@@ -185,7 +186,7 @@ func show_title() -> void:
 	_button(content, "SETTINGS", func(): open_settings("title"))
 	_button(content, "CREDITS", show_credits)
 	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Close the game?", func(): get_tree().quit()))
-	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     EXPERIENCE  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 18)
+	_label(content, "BEST SCORE  %d     HIGHEST WAVE  %d     XP  %d" % [Progression.best_score, Progression.highest_wave, Progression.currency], 18)
 	if Progression.load_notice != "": _label(content, Progression.load_notice, 18)
 	_focus_first()
 
@@ -282,7 +283,7 @@ func _process(delta: float) -> void:
 		cooldown.max_value = player.trampoline_cooldowns[player.selected_tier]
 		cooldown.value = maxf(0.0, cooldown.max_value - player.cooldown_left)
 		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
-		wave_text.text = "Experience: %d" % Progression.currency
+		wave_text.text = "XP: %d" % Progression.currency
 		score_text.text = "Score: %d" % manager.score
 		tier_text.text = '"E" to place trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
 		dash_bar.value = player.dash_charge * 100.0
@@ -348,7 +349,7 @@ func show_game() -> void:
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(left)
 	_hud_label(left, '"F" for upgrades')
-	wave_text = _hud_label(left, "Experience: %d" % Progression.currency)
+	wave_text = _hud_label(left, "XP: %d" % Progression.currency)
 	score_text = _hud_label(left, "Score: 0")
 	fps_text = _hud_label(left, "", 10)
 	var right := VBoxContainer.new()
@@ -406,27 +407,27 @@ func show_pause() -> void:
 	_page("PAUSED", "The arena, enemies, attacks and wave countdown are frozen.")
 	var manager := _manager()
 	if manager != null:
-		_label(content, "Wave %d / Score %d / Kills %d / Run experience %d\nTime survived: %ds" % [manager.wave, manager.score, manager.kills, manager.currency, int(elapsed)], 26)
+		_label(content, "Wave %d / Score %d / Kills %d / Run XP %d\nTime survived: %ds" % [manager.wave, manager.score, manager.kills, manager.currency, int(elapsed)], 26)
 	_button(content, "RESUME", func():
 		_manager()._resume()
 		show_game())
 	_button(content, "SETTINGS", func(): open_settings("pause"))
 	_button(content, "HOW TO PLAY", func(): open_help("pause"))
 	_button(content, "RESTART RUN", request_restart)
-	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end and earned experience will be banked.", leave_run))
-	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end and earned experience will be banked.", quit_game))
+	_button(content, "MAIN MENU", func(): confirm("End this run?", "Your run will end and earned XP will be banked.", leave_run))
+	_button(content, "QUIT", func(): confirm("Quit Rebound?", "Your run will end and earned XP will be banked.", quit_game))
 	_focus_first()
 
 func show_results() -> void:
 	screen = "results"
 	var manager := _manager()
-	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER", "Try again, we believe in you!")
+	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
 	_label(content, str(manager.score), 72)
 	_label(content, "FINAL SCORE", 20)
 	_label(content, "Wave reached: %d / Waves cleared: %d\nEnemies defeated: %d / Time: %ds" % [manager.wave, manager.waves_cleared, manager.kills, int(elapsed)], 26)
-	_label(content, "EXPERIENCE EARNED  %d     BALANCE  %d" % [manager.currency, Progression.currency], 28)
+	_label(content, "XP EARNED  %d     BALANCE  %d" % [manager.currency, Progression.currency], 28)
 	if not manager.banked:
-		_label(content, "Progress could not be saved. Your earned experience are still held in this run. Retry before leaving.", 22)
+		_label(content, "Progress could not be saved. Your earned XP is still held in this run. Retry before leaving.", 22)
 		_button(content, "RETRY SAVE", func():
 			manager.bank_run()
 			show_results())
@@ -439,7 +440,7 @@ func show_results() -> void:
 	_focus_first()
 
 func request_restart() -> void:
-	confirm("Restart run?", "End this run, bank earned experience, and begin again?", start_run)
+	confirm("Restart run?", "End this run, bank earned XP, and begin again?", start_run)
 
 func leave_run() -> void:
 	if not _bank_before_leaving(): return
@@ -528,8 +529,16 @@ func _toggle(parent: Node, title: String, key: String) -> void:
 	parent.add_child(item)
 
 func _slider(parent: Node, title: String, key: String, minimum: float, maximum: float, step_size: float) -> void:
+	var padding := MarginContainer.new()
+	padding.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	padding.add_theme_constant_override("margin_left", 22)
+	padding.add_theme_constant_override("margin_right", 22)
+	padding.add_theme_constant_override("margin_top", 8)
+	padding.add_theme_constant_override("margin_bottom", 8)
+	parent.add_child(padding)
 	var row := HBoxContainer.new()
-	parent.add_child(row)
+	row.add_theme_constant_override("separation", 24)
+	padding.add_child(row)
 	var label := _label(row, "%s: %s" % [title, str(SettingsManager.get_value(key))])
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var slider := HSlider.new()
@@ -632,7 +641,7 @@ func show_shop(origin: String) -> void:
 	return_screen = origin
 	screen = "shop"
 	_page("BOUNCE BACK STRONGER", "UPGRADES / Applied at the start of your next run")
-	_label(content, "AVAILABLE EXPERIENCE  %d" % Progression.currency, 34)
+	_label(content, "AVAILABLE XP  %d" % Progression.currency, 34)
 	for key in ["health", "stomp", "cooldown", "rebound"]:
 		var definition: Dictionary = Progression.UPGRADES[key]
 		var level: int = int(Progression.levels[key])
@@ -661,8 +670,8 @@ func show_shop(origin: String) -> void:
 		_label(box, "CURRENT  " + current, 22)
 		if level < cap: _label(box, "NEXT  " + upcoming, 22)
 		var price: int = Progression.price(key)
-		var text := "MAXIMUM LEVEL" if level >= cap else "BUY / %d EXPERIENCE" % price
-		if level < cap and Progression.currency < price: text = "NEED %d MORE EXPERIENCE" % (price - Progression.currency)
+		var text := "MAXIMUM LEVEL" if level >= cap else "BUY / %d XP" % price
+		if level < cap and Progression.currency < price: text = "NEED %d MORE XP" % (price - Progression.currency)
 		var buy := _button(box, text, _purchase_upgrade.bind(key, origin))
 		buy.disabled = level >= cap or Progression.currency < price
 	_button(content, "BACK", _back)

@@ -86,7 +86,7 @@ There isn't one. The game runs on an infinite loop, and the goal is to reach the
 
 Minimal text with drop shadows and no backgrounds, to keep focus on the game (text size around 12-14).
 
-- **Top left:** `[F] for upgrades`, then `Experience: xxxx`, then `Score: xxxx`
+- **Top left:** `[F] for upgrades`, then `XP: xxxx`, then `Score: xxxx`
 - **Top right:** trampoline cooldown with one decimal (e.g. `5.3 seconds for trampoline placement`), switching to `"E" to place trampoline` when ready. Below it: `Health: xxx/100`
 - **Bottom left:** smaller text, `"Esc" to open settings`
 
