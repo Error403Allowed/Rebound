@@ -1,18 +1,24 @@
 [remap]
 
-importer="mp3"
-type="AudioStreamMP3"
-uid="uid://bfpql1jpfg4li"
-valid=false
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://psa41o6biv7l"
+path="res://.godot/imported/ui_click.wav-57f00c538ef11abf23cb84803435bfe8.sample"
 
 [deps]
 
 source_file="res://Assets/Audio/SFX/ui_click.wav"
+dest_files=["res://.godot/imported/ui_click.wav-57f00c538ef11abf23cb84803435bfe8.sample"]
 
 [params]
 
-loop=false
-loop_offset=0
-bpm=0
-beat_count=0
-bar_beats=4
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

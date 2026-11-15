@@ -1,18 +1,24 @@
 [remap]
 
-importer="mp3"
-type="AudioStreamMP3"
-uid="uid://cgd2omjwdf4mn"
-valid=false
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://rub31fv5wfe1"
+path="res://.godot/imported/stomp_impact.wav-881987d0fd2f3b2d2cfa4a8474db1da9.sample"
 
 [deps]
 
 source_file="res://Assets/Audio/SFX/stomp_impact.wav"
+dest_files=["res://.godot/imported/stomp_impact.wav-881987d0fd2f3b2d2cfa4a8474db1da9.sample"]
 
 [params]
 
-loop=false
-loop_offset=0
-bpm=0
-beat_count=0
-bar_beats=4
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

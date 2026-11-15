@@ -1,18 +1,24 @@
 [remap]
 
-importer="mp3"
-type="AudioStreamMP3"
-uid="uid://ycvgjfwafjf7"
-valid=false
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dmnugg1141eey"
+path="res://.godot/imported/trampoline_place.wav-5337218c7fbf527dbec8886394253df7.sample"
 
 [deps]
 
 source_file="res://Assets/Audio/SFX/trampoline_place.wav"
+dest_files=["res://.godot/imported/trampoline_place.wav-5337218c7fbf527dbec8886394253df7.sample"]
 
 [params]
 
-loop=false
-loop_offset=0
-bpm=0
-beat_count=0
-bar_beats=4
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
