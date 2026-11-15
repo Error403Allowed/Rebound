@@ -76,7 +76,7 @@ func _button(parent: Node, text: String, action: Callable) -> Button:
 	item.mouse_exited.connect(_animate_button.bind(item, false))
 	item.focus_entered.connect(_animate_button.bind(item, true))
 	item.focus_exited.connect(_animate_button.bind(item, false))
-		item.pressed.connect(action)
+	item.pressed.connect(action)
 	parent.add_child(item)
 	return item
 
