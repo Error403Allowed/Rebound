@@ -10,6 +10,7 @@ extends Node
 @export var count_per_wave := 3
 @export var max_alive := 25
 @export var heal_between_waves := 0
+@export_range(0.1, 1.0, 0.05) var clear_fraction := 0.65   # share of a wave you must kill to move on
 
 @export_group("Spawning")
 @export var spawn_edge_inset := 2.0
@@ -23,6 +24,9 @@ var wave := 0
 var to_spawn := 0
 var alive := 0
 var kills := 0
+var wave_total := 0         # enemies this wave was going to spawn
+var wave_needed := 0        # kills required to clear it
+var wave_kills := 0         # kills of this wave's own enemies
 var score := 0
 var currency := 0
 var game_over := false
@@ -67,15 +71,16 @@ func _process(delta: float) -> void:
 		if break_timer <= 0.0:
 			_start_wave()
 	else:
-		if to_spawn > 0 and alive < max_alive:
+		# enough of the wave is dead: move on, even if some enemies are still alive
+		if wave_kills >= wave_needed:
+			_end_wave()
+		elif to_spawn > 0 and alive < max_alive:
 			spawn_timer -= delta
 			if spawn_timer <= 0.0:
 				_spawn_enemy()
 				to_spawn -= 1
 				alive += 1
 				spawn_timer = spawn_interval
-		elif to_spawn == 0 and alive == 0:
-			_end_wave()
 	_update_hud()
 
 
@@ -83,6 +88,9 @@ func _start_wave() -> void:
 	wave += 1
 	in_break = false
 	to_spawn = base_count + wave * count_per_wave
+	wave_total = to_spawn
+	wave_needed = maxi(1, ceili(wave_total * clear_fraction))
+	wave_kills = 0
 	spawn_interval = maxf(0.25, 1.2 - wave * 0.08)
 	speedy_chance = clampf((wave - 1) * 0.1, 0.0, 0.5)
 	spawn_timer = 0.0
@@ -93,6 +101,7 @@ func _end_wave() -> void:
 	waves_cleared += 1
 	in_break = true
 	break_timer = time_between_waves
+	to_spawn = 0               # enemies not spawned yet are dropped; ones already alive stay
 	score += score_per_wave
 	currency += coins_per_wave
 	_show_banner("WAVE %d CLEARED" % wave)
@@ -142,16 +151,21 @@ func _spawn_enemy() -> void:
 	enemy.type = _pick_type() as Enemy.Type
 	enemy.role = _pick_role() as Enemy.Role
 	enemy.health = 1 + mini(3, int(wave / 6.0))
-	enemy.died.connect(_on_enemy_died)
+	enemy.set_meta("wave", wave)                      # remembers which wave it belongs to
+	enemy.died.connect(_on_enemy_died.bind(enemy))
 	add_child(enemy)
 	enemy.global_position = _spawn_point()
 
 
-func _on_enemy_died(_enemy_type: int) -> void:
+func _on_enemy_died(_enemy_type: int, enemy: Node) -> void:
 	alive = maxi(0, alive - 1)
 	kills += 1
 	score += score_per_kill
 	currency += coins_per_kill
+	# only kills of the current wave's own enemies count toward clearing it,
+	# so stragglers from an earlier wave don't speed up the next one
+	if not in_break and int(enemy.get_meta("wave", 0)) == wave:
+		wave_kills += 1
 
 
 func _on_player_died() -> void:
@@ -162,7 +176,7 @@ func _on_player_died() -> void:
 	resume_button.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "GAME OVER"
-	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun XP: %d\n\nEarned XP is banked when the run ends." % [score, wave, kills, currency]
+	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun experience: %d\n\nEarned experience are banked when the run ends." % [score, wave, kills, currency]
 	results.show()
 	restart_button.grab_focus()
 	results.hide()
@@ -178,21 +192,30 @@ func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.process_mode = Node.PROCESS_MODE_ALWAYS
 
+	# wave info: full-width strip across the top, text centred, so it stays top middle at any resolution
 	info = Label.new()
-	info.custom_minimum_size = Vector2(700, 34)
+	info.custom_minimum_size = Vector2(0, 34)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	info.offset_top += 15
+	info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	info.add_theme_font_size_override("font_size", 24)
+	info.add_theme_constant_override("outline_size", 6)
+	info.add_theme_color_override("font_outline_color", Color.BLACK)
+	info.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	info.offset_top = 12
+	info.offset_bottom = 46
 	layer.add_child(info)
 
+	# "WAVE 3" banner: also top middle, just under the info strip
 	banner = Label.new()
-	banner.custom_minimum_size = Vector2(700, 100)
+	banner.custom_minimum_size = Vector2(0, 80)
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	banner.add_theme_font_size_override("font_size", 52)
-	banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	banner.offset_top -= 160
-	banner.offset_bottom -= 160
+	banner.add_theme_constant_override("outline_size", 10)
+	banner.add_theme_color_override("font_outline_color", Color.BLACK)
+	banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	banner.offset_top = 55
+	banner.offset_bottom = 135
 	banner.modulate.a = 0.0
 	layer.add_child(banner)
 
@@ -239,9 +262,10 @@ func _build_hud() -> void:
 
 func _update_hud() -> void:
 	if in_break:
-		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   XP: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
+		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
 	else:
-		info.text = "Wave %d   |   Enemies left: %d   |   Kills: %d   |   Score: %d   |   XP: %d" % [wave, to_spawn + alive, kills, score, currency]
+		var to_clear := maxi(0, wave_needed - wave_kills)
+		info.text = "Wave %d   |   Defeat %d more to advance   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave, to_clear, kills, score, currency]
 
 
 func _show_banner(text: String) -> void:
@@ -277,7 +301,7 @@ func _pause() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "PAUSED"
-	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run XP: %d" % [score, wave, kills, currency]
+	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run experience: %d" % [score, wave, kills, currency]
 	resume_button.show()
 	results.show()
 	resume_button.grab_focus()
