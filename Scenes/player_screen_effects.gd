@@ -37,9 +37,9 @@ void fragment() {
 	float damage = clamp(max(low, dead_amount), 0.0, 1.0);
 	float edge = smoothstep(0.18, 1.15, radius);
 	float angle = atan(centre.y, centre.x);
-	float sway = sin(time * 2.3 + radius * 4.0) * 0.0125;
-	float roll = sin(time * 1.7) * 0.0095;
-	float wobble = sin(time * 8.0 + radius * 17.0 + angle * 2.0) * 0.0065;
+	float sway = sin(time * 2.3 + radius * 4.0) * 0.0075;
+	float roll = sin(time * 1.7) * 0.0055;
+	float wobble = sin(time * 8.0 + radius * 17.0 + angle * 2.0) * 0.0038;
 	vec2 dizzy = vec2(cos(angle), sin(angle)) * (sway + roll) + vec2(wobble, -wobble * 0.6);
 	uv += dizzy * distortion_strength * (0.55 + edge * 0.45);
 	float blur_amount = (0.9 * damage * (0.35 + edge * 0.65) + pulse * damage * 0.5) * distortion_strength;
