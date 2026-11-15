@@ -29,6 +29,8 @@ var wave_text: Label
 var score_text: Label
 var tier_text: Label
 var cooldown: ProgressBar
+var dash_bar: TextureProgressBar
+var dash_text: Label
 var fps_text: Label
 var elapsed := 0.0
 var modal: ConfirmationDialog
@@ -285,6 +287,9 @@ func _process(delta: float) -> void:
 		wave_text.text = "XP: %d%s" % [Progression.currency, " (save pending)" if manager.bank_error != OK else ""]
 		score_text.text = "Score: %d" % manager.score
 		tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
+		dash_bar.value = player.dash_charge * 100.0
+		dash_text.text = '"Q" dash: %d%%' % int(round(player.dash_charge * 100.0))
+		dash_bar.modulate = Color(0.45, 1.0, 0.75) if player.dash_charge >= 0.999 else Color.WHITE if player.dash_charge >= player.dash_minimum_charge else Color(0.6, 0.65, 0.7)
 		fps_text.text = "%d FPS" % Engine.get_frames_per_second() if bool(SettingsManager.get_value("show_fps")) else ""
 
 func _enter_game() -> void:
@@ -368,6 +373,30 @@ func show_game() -> void:
 	hint.offset_top = -40
 	hint.offset_bottom = -14
 
+	var dash_box := VBoxContainer.new()
+	hud.add_child(dash_box)
+	dash_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	dash_box.offset_left = -120
+	dash_box.offset_right = 120
+	dash_box.offset_top = -76
+	dash_box.offset_bottom = -20
+	dash_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dash_text = _hud_label(dash_box, '"Q" dash: 100%', 18)
+	dash_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dash_bar = TextureProgressBar.new()
+	dash_bar.fill_mode = TextureProgressBar.FILL_BILINEAR_LEFT_AND_RIGHT
+	dash_bar.max_value = 100.0
+	dash_bar.custom_minimum_size = Vector2(240, 8)
+	dash_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 240
+	texture.height = 8
+	dash_bar.texture_progress = texture
+	dash_bar.nine_patch_stretch = true
+	dash_box.add_child(dash_bar)
 	var player := _player()
 	if player != null: player.hud.hide()
 	var manager := _manager()
@@ -483,7 +512,7 @@ func open_settings(origin: String) -> void:
 				_toggle(box, "Disable damage flashing", "reduced_flashing")
 				_label(box, "Roles have text labels as well as colours. Menus support Tab/arrows, Enter and Escape.", 20)
 			"Controls":
-				_label(box, "WASD — Move\nMouse — Look\nSpace — Jump\n1 / 2 / 3 — Select trampoline\nE / Left click — Place\nF — Upgrades (immediate)\nEscape — Pause / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
+				_label(box, "WASD — Move\nMouse — Look\nSpace — Jump\nQ — Charged dash (ground and air)\n1 / 2 / 3 — Select trampoline\nE / Left click — Place\nF — Upgrades (immediate)\nEscape — Pause / back\nR — Request restart\n\nCustom key rebinding is still pending; these are the current bindings.", 24)
 			"Data":
 				_label(box, "Settings file: user://settings.cfg\nPreferences and permanent progression are saved separately.", 22)
 				_button(box, "RESET SETTINGS", func(): confirm("Reset preferences?", "Restore default preferences? Your run is not reset.", func():
