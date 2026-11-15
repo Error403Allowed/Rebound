@@ -223,6 +223,7 @@ func _physics_process(delta: float) -> void:
 
 	if is_on_floor() and Input.is_physical_key_pressed(KEY_SPACE):
 		velocity.y = jump_speed
+	SFXManager.play("jump", -12.0)
 
 	var input := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
@@ -291,10 +292,12 @@ func take_damage(amount: int, attacker: Node = null) -> void:
 	health = maxi(0, health - amount)
 	hit_timer = hit_invulnerability
 	health_changed.emit(health)
+	SFXManager.play("player_damage", -9.0)
 	_show_damage_flash()
 	if health <= 0:
 		place_mode = false
 		velocity = Vector3.ZERO
+		SFXManager.play("player_death", -6.0)
 		died.emit()
 
 
@@ -332,6 +335,7 @@ func _slam_impact() -> void:
 		slammed = false
 	_spawn_shockwave(origin)
 	stomped.emit()
+	SFXManager.play("stomp_impact", -7.0)
 
 
 func _spawn_shockwave(pos: Vector3) -> void:
@@ -399,6 +403,7 @@ func try_place() -> void:
 	if not _is_valid(hit):
 		return
 	_spawn_trampoline(hit.position)
+	SFXManager.play("trampoline_place", -10.0)
 	cooldown_left = trampoline_cooldown
 	place_mode = false                       # back to normal after placing
 
@@ -455,6 +460,7 @@ func _on_tramp_entered(body: Node3D, area: Area3D) -> void:
 	var bonus := register_trampoline_bounce(area)
 	var launch := trampoline_launch_speed + bonus
 	velocity.y = maxf(velocity.y, launch)
+	SFXManager.play("trampoline_launch", -8.0)
 	launched = true
 	slammed = false
 	enemy_bounces = 0                        # a trampoline bounce refills the enemy-bounce allowance
@@ -531,4 +537,5 @@ func try_dash() -> bool:
 	dash_fov_kick = lerpf(10.0, 18.0, strength)
 	dash_left = lerpf(dash_min_duration, dash_max_duration, strength)
 	dash_charge = 0.0
+	SFXManager.play("dash", -9.0)
 	return true

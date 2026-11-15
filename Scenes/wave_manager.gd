@@ -118,6 +118,7 @@ func _end_wave() -> void:
 	score += score_per_wave
 	_award_xp(coins_per_wave)
 	_show_banner("WAVE %d CLEARED" % wave)
+	SFXManager.play("success", -8.0)
 	if heal_between_waves > 0 and player != null:
 		player.health = mini(player.health + heal_between_waves, player.max_health)
 
