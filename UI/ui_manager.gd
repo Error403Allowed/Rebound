@@ -147,7 +147,7 @@ func _page(title: String, subtitle: String = "") -> void:
 	rule.add_theme_stylebox_override("separator", line)
 	content.add_child(rule)
 	var hint := Label.new()
-	hint.text = "ESC  BACK    •    TAB / ARROWS  NAVIGATE    •    ENTER  SELECT"
+	hint.text = "ESC  BACK        TAB / ARROWS  NAVIGATE        ENTER  SELECT"
 	hint.add_theme_font_size_override("font_size", 15)
 	hint.modulate = Color(0.6, 0.69, 0.77)
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
