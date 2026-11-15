@@ -88,11 +88,14 @@ func _process(delta: float) -> void:
 func _update_music() -> void:
 	if player == null:
 		return
-	var danger := alive >= 7 or wave >= 8 or float(player.health) / maxf(1.0, float(player.max_health)) < 0.35
-	if danger:
-		MusicManager.play_danger()
-	else:
-		MusicManager.play_combat()
+	var remaining := maxi(0, wave_total - wave_kills)
+	var enemy_pressure := clampf(float(alive) / 12.0, 0.0, 1.0)
+	var wave_pressure := clampf(float(wave - 1) / 12.0, 0.0, 1.0)
+	var health_pressure := 1.0 - clampf(float(player.health) / maxf(1.0, float(player.max_health)), 0.0, 1.0)
+	var intensity := 0.2 + enemy_pressure * 0.4 + wave_pressure * 0.2 + health_pressure * 0.4
+	if in_break:
+		intensity = 0.1
+	MusicManager.set_intensity(intensity)
 
 func _start_wave() -> void:
 	wave += 1
@@ -180,6 +183,7 @@ func _on_enemy_died(_enemy_type: int, enemy: Node) -> void:
 
 func _on_player_died() -> void:
 	game_over = true
+	MusicManager.play_death()
 	bank_run()
 	pause_active = false
 	get_tree().paused = true

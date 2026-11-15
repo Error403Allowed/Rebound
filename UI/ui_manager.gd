@@ -174,7 +174,6 @@ func _focus_first() -> void:
 func show_title() -> void:
 	screen = "title"
 	MusicManager.play_menu()
-	MusicManager.play_menu()
 	get_tree().paused = false
 	_page("REBOUND")
 	_button(content, "START SURVIVAL", start_run)
@@ -238,7 +237,6 @@ func confirm(title: String, message: String, action: Callable) -> void:
 
 func start_run() -> void:
 	if loading: return
-	MusicManager.play_combat()
 	MusicManager.play_combat()
 	if not _bank_before_leaving(): return
 	get_tree().paused = false
@@ -377,6 +375,7 @@ func show_game() -> void:
 
 func show_pause() -> void:
 	screen = "pause"
+	MusicManager.pause_to_menu()
 	_page("PAUSED", "The arena, enemies, attacks and wave countdown are frozen.")
 	var manager := _manager()
 	if manager != null:
@@ -393,7 +392,6 @@ func show_pause() -> void:
 
 func show_results() -> void:
 	screen = "results"
-	MusicManager.play_menu()
 	MusicManager.play_menu()
 	var manager := _manager()
 	_page("NEW PERSONAL BEST" if manager.new_best else "RUN OVER")
@@ -419,7 +417,6 @@ func request_restart() -> void:
 
 func leave_run() -> void:
 	if not _bank_before_leaving(): return
-	MusicManager.play_menu()
 	MusicManager.play_menu()
 	_clear_menu_world()
 	get_tree().paused = false
