@@ -288,7 +288,7 @@ func _process(delta: float) -> void:
 		score_text.text = "Score: %d" % manager.score
 		tier_text.text = '"E" to show trampoline' if player.cooldown_left <= 0.0 else "Trampoline ready in %.1f s" % player.cooldown_left
 		dash_bar.value = player.dash_charge * 100.0
-		dash_text.text = 'Dash: %d%%' % int(round(player.dash_charge * 100.0))
+		dash_text.text = '"Q" dash: %d%%' % int(round(player.dash_charge * 100.0))
 		dash_bar.modulate = Color(0.45, 1.0, 0.75) if player.dash_charge >= 0.999 else Color.WHITE if player.dash_charge >= player.dash_minimum_charge else Color(0.6, 0.65, 0.7)
 		fps_text.text = "%d FPS" % Engine.get_frames_per_second() if bool(SettingsManager.get_value("show_fps")) else ""
 
@@ -396,24 +396,6 @@ func show_game() -> void:
 	texture.height = 8
 	dash_bar.texture_progress = texture
 	dash_bar.nine_patch_stretch = true
-	var dash_border := Panel.new()
-	dash_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dash_border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dash_border.offset_left = -2
-	dash_border.offset_right = 2
-	dash_border.offset_top = -2
-	dash_border.offset_bottom = 2
-	var border_style := StyleBoxFlat.new()
-	border_style.bg_color = Color(0, 0, 0, 0)
-	border_style.border_color = Color(1, 1, 1, 0.95)
-	border_style.set_border_width_all(2)
-	border_style.corner_radius_top_left = 5
-	border_style.corner_radius_top_right = 5
-	border_style.corner_radius_bottom_left = 5
-	border_style.corner_radius_bottom_right = 5
-	dash_border.add_theme_stylebox_override("panel", border_style)
-	dash_box.add_child(dash_border)
-	dash_border.z_index = 1
 	dash_box.add_child(dash_bar)
 	var player := _player()
 	if player != null: player.hud.hide()
