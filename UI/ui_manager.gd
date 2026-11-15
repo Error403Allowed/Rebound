@@ -6,7 +6,7 @@ const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Bank XP at the end of a run and invest in upgrades."],
+	["Survival", "Survive endless waves. Launch from trampolines and squash enemies to damage them. Bank XP at the end of a run and invest in upgrades."],
 	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
 	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 16 / 4 charges / base 5-second cooldown\n2 BLUE: launch 20 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 25 / 2 charges / base 12-second cooldown\nAim at flat ground and press E (left click also works). Placement uses one shared cooldown. Each launch consumes a charge."],
 	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
