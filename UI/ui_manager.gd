@@ -6,14 +6,10 @@ const BACKDROP = preload("res://UI/menu_backdrop.gdshader")
 const ARENA := "res://Scenes/main.tscn"
 const MENU_WORLD := "res://Scenes/menu_world.tscn"
 const LESSONS := [
-<<<<<<< HEAD
-	["Survival", "Survive endless waves. Launch from trampolines and squash enemies to damage them. Bank XP at the end of a run and invest in upgrades."],
+	["Intro", "Rebound is a horde-survival game with the focus of squishing enemies by bouncing noto them from a trampoline"],
 	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nShift + forward — sprint\nSpace — jump (holding repeats jumps)\nQ — dash on ground or in air. Charge refills in 3 seconds; 20% minimum. More charge gives more speed and distance; capped at 100%. Each dash spends the meter.\nF — upgrades (banked XP; applies next run)\nEscape — settings\nR — restart with confirmation"],
-=======
 	["Survival", "Survive endless waves in the grass arena. Launch from trampolines and land near enemies to damage them. There is no final victory wave: improve your run score. Earn XP immediately and spend it on upgrades during the run."],
 	["MOVE WITH INTENT", "W A S D — move\nMouse — look and aim\nSpace — jump (holding repeats jumps)\nF — upgrades (banked XP; applies immediately)\nEscape — pause menu\nR — restart with confirmation"],
->>>>>>> 49664748104a752d1b2c0a94376c313c90be32b5
-	["CHOOSE YOUR TRAMPOLINE", "1 GREEN: launch 16 / 4 charges / base 5-second cooldown\n2 BLUE: launch 20 / 3 charges / base 8-second cooldown\n3 PURPLE: launch 25 / 2 charges / base 12-second cooldown\nAim at flat ground and press E (left click also works). Placement uses one shared cooldown. Each launch consumes a charge."],
 	["BUILD YOUR REBOUND", "Buy Rebound in the shop for 55 XP to unlock +1.5 launch velocity per consecutive bounce on the same trampoline, capped at +8. Without the upgrade, bounces use base launch strength. Switching trampolines resets the bonus. Charges still apply: no trampoline lasts forever."],
 	["LAND YOUR ATTACK", "After a trampoline launch, land to trigger one impact. Enemies within 2 metres of your landing centre take your stomp damage, starting at 1. The shockwave expands to that radius. Direct descending contact from above also triggers a stomp. Landing on a trampoline can stomp and bounce together. Hitting an enemy rebounds you upward. The current build protects you from enemy contact during the launched state."],
 	["READ THE ENEMIES", "CHASER: predictive pursuit and airborne repositioning.\nDODGER (wave 3+): yellow warning, then sidestep.\nFLANKER (wave 5+): angled interception.\nCHARGER (wave 7+): warning, committed rush, recovery.\nRoles and the basic/speedy variants are separate."],

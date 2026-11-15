@@ -467,5 +467,3 @@ func _show_damage_flash() -> void:
 	var tween := create_tween()
 	tween.tween_property(flash, "modulate:a", 0.0, 0.18)
 	tween.tween_callback(canvas.queue_free)
-
-
