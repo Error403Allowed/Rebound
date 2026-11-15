@@ -281,8 +281,6 @@ func _process(delta: float) -> void:
 		if not get_tree().paused: elapsed += delta
 		health_bar.max_value = player.max_health
 		health_bar.value = player.health
-		cooldown.max_value = player.trampoline_cooldowns[player.selected_tier]
-		cooldown.value = maxf(0.0, cooldown.max_value - player.cooldown_left)
 		health_text.text = "Health: %d/%d" % [player.health, player.max_health]
 		wave_text.text = "XP: %d%s" % [Progression.currency, " (save pending)" if manager.bank_error != OK else ""]
 		score_text.text = "Score: %d" % manager.score
@@ -352,7 +350,7 @@ func show_game() -> void:
 	_hud_label(left, '"F" for upgrades')
 	wave_text = _hud_label(left, "XP: %d" % Progression.currency)
 	score_text = _hud_label(left, "Score: 0")
-	fps_text = _hud_label(left, "", 10)
+	fps_text = _hud_label(left, "")
 	var right := VBoxContainer.new()
 	hud.add_child(right)
 	right.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -363,7 +361,6 @@ func show_game() -> void:
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tier_text = _hud_label(right, '"E" to place trampoline')
 	tier_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cooldown = _hud_bar(right, Color(0.4, 0.75, 1.0), 10)
 	health_text = _hud_label(right, "Health: 100/100")
 	health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	health_bar = _hud_bar(right, Color(0.3, 0.95, 0.6), 14)
