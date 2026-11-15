@@ -3,7 +3,7 @@ extends CharacterBody3D
 
 signal died(enemy_type: int)
 
-enum Type { BASIC, SPEEDY }
+enum Type { BASIC, SPEEDY, TANK }
 enum Role { CHASER, DODGER, FLANKER, CHARGER }
 
 const STATS := {

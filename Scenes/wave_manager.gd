@@ -104,7 +104,6 @@ func _start_wave() -> void:
 	wave_needed = maxi(1, ceili(wave_total * clear_fraction))
 	wave_kills = 0
 	spawn_interval = maxf(0.25, 1.2 - wave * 0.08)
-	speedy_chance = clampf((wave - 1) * 0.1, 0.0, 0.5)
 	spawn_timer = 0.0
 	_show_banner("WAVE %d" % wave)
 
@@ -122,7 +121,10 @@ func _end_wave() -> void:
 
 
 func _pick_type() -> int:
-	if randf() < speedy_chance:
+	var roll := randf()
+	if wave >= 3 and roll < 0.18:
+		return Enemy.Type.TANK
+	if wave >= 2 and roll < 0.48:
 		return Enemy.Type.SPEEDY
 	return Enemy.Type.BASIC
 
