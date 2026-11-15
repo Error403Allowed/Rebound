@@ -103,7 +103,7 @@ func _end_wave() -> void:
 	break_timer = time_between_waves
 	to_spawn = 0               # enemies not spawned yet are dropped; ones already alive stay
 	score += score_per_wave
-	currency += coins_per_wave
+	_award_xp(coins_per_wave)
 	_show_banner("WAVE %d CLEARED" % wave)
 	if heal_between_waves > 0 and player != null:
 		player.health = mini(player.health + heal_between_waves, player.max_health)
@@ -161,7 +161,7 @@ func _on_enemy_died(_enemy_type: int, enemy: Node) -> void:
 	alive = maxi(0, alive - 1)
 	kills += 1
 	score += score_per_kill
-	currency += coins_per_kill
+	_award_xp(coins_per_kill)
 	# only kills of the current wave's own enemies count toward clearing it,
 	# so stragglers from an earlier wave don't speed up the next one
 	if not in_break and int(enemy.get_meta("wave", 0)) == wave:
@@ -176,7 +176,7 @@ func _on_player_died() -> void:
 	resume_button.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "GAME OVER"
-	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun experience: %d\n\nEarned experience are banked when the run ends." % [score, wave, kills, currency]
+	results_stats.text = "Score: %d\nWave reached: %d\nEnemies defeated: %d\nRun XP: %d\n\nXP is credited as it is earned." % [score, wave, kills, currency]
 	results.show()
 	restart_button.grab_focus()
 	results.hide()
@@ -262,10 +262,10 @@ func _build_hud() -> void:
 
 func _update_hud() -> void:
 	if in_break:
-		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
+		info.text = "Wave %d starts in %d   |   Kills: %d   |   Score: %d   |   XP: %d" % [wave + 1, ceili(break_timer), kills, score, currency]
 	else:
 		var to_clear := maxi(0, wave_needed - wave_kills)
-		info.text = "Wave %d   |   Defeat %d more to advance   |   Kills: %d   |   Score: %d   |   Experience: %d" % [wave, to_clear, kills, score, currency]
+		info.text = "Wave %d   |   Defeat %d more to advance   |   Kills: %d   |   Score: %d   |   XP: %d" % [wave, to_clear, kills, score, currency]
 
 
 func _show_banner(text: String) -> void:
@@ -286,7 +286,6 @@ func _input(event: InputEvent) -> void:
 			KEY_ESCAPE:
 				get_viewport().set_input_as_handled()
 				_pause()
-				UIManager.open_settings("game")
 			KEY_F:
 				get_viewport().set_input_as_handled()
 				_pause()
@@ -301,7 +300,7 @@ func _pause() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	results_title.text = "PAUSED"
-	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run experience: %d" % [score, wave, kills, currency]
+	results_stats.text = "Score: %d | Wave: %d | Kills: %d | Run XP: %d" % [score, wave, kills, currency]
 	resume_button.show()
 	results.show()
 	resume_button.grab_focus()
@@ -328,3 +327,10 @@ func bank_run() -> int:
 		banked = true
 		new_best = score > previous_best
 	return bank_error
+
+
+func _award_xp(amount: int) -> void:
+	if amount <= 0 or banked:
+		return
+	currency += amount
+	bank_error = Progression.credit_run_total(run_id, currency)

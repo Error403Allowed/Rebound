@@ -6,23 +6,13 @@ signal stomped
 
 @export_group("Movement")
 @export var move_speed := 11.0
-@export var sprint_speed := 16.5
 @export var ground_accel := 70.0
 @export var air_accel := 24.0
 @export var air_move_speed := 18.0
-@export var air_sprint_speed := 22.0
 @export var air_drag := 0.35
 @export var jump_speed := 8.0
 @export var gravity: float = 26.0
 @export var mouse_sensitivity := 0.0025
-
-@export_group("Dash")
-@export var dash_recharge_time := 3.0
-@export var dash_minimum_charge := 0.2
-@export var dash_min_speed := 18.0
-@export var dash_max_speed := 32.0
-@export var dash_min_duration := 0.10
-@export var dash_max_duration := 0.22
 
 @export_group("Trampoline")
 @export var place_range := 10.0
@@ -69,11 +59,6 @@ var hit_timer := 0.0
 var last_trampoline: Node = null
 var consecutive_bounces := 0
 var base_fov := 75.0
-var dash_charge := 1.0
-var dash_left := 0.0
-var dash_speed := 0.0
-var dash_fov_kick := 0.0
-var dash_direction := Vector3.ZERO
 var last_impact_frame := -1
 var last_fall_speed := 0.0
 
@@ -179,8 +164,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				# E toggles place mode
 				if UIManager.screen == "" and not UIManager.modal.visible and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 					place_mode = not place_mode
-			KEY_Q:
-				try_dash()
 			KEY_R:
 				UIManager.request_restart()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -193,7 +176,6 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if health <= 0 or get_tree().paused:
 		return
-	dash_charge = minf(1.0, dash_charge + delta / maxf(0.01, dash_recharge_time))
 	cooldown_left = maxf(cooldown_left - delta, 0.0)
 	hit_timer = maxf(hit_timer - delta, 0.0)
 
@@ -215,10 +197,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D): input.x += 1.0
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 
-	var sprinting := Input.is_physical_key_pressed(KEY_SHIFT) and input.y < 0.0
-	var current_speed := sprint_speed if sprinting else move_speed
+	var current_speed := move_speed
 	if not is_on_floor():
-		current_speed = air_sprint_speed if sprinting else air_move_speed
+		current_speed = air_move_speed
 	var accel := ground_accel if is_on_floor() else air_accel
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	if is_on_floor():
@@ -230,19 +211,14 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal_velocity.x
 	velocity.z = horizontal_velocity.z
 
-	if dash_left > 0.0:
-		velocity.x = dash_direction.x * dash_speed
-		velocity.z = dash_direction.z * dash_speed
-		dash_left = maxf(0.0, dash_left - delta)
 	var fall_speed := velocity.y
 	last_fall_speed = fall_speed
 	move_and_slide()
-	if dash_left <= 0.0:
-		var flat_speed := Vector2(velocity.x, velocity.z).length()
-		var speed_limit := sprint_speed if is_on_floor() else maxf(air_sprint_speed, dash_max_speed)
-		if flat_speed > speed_limit:
-			velocity.x *= speed_limit / flat_speed
-			velocity.z *= speed_limit / flat_speed
+	var flat_speed := Vector2(velocity.x, velocity.z).length()
+	var speed_limit := move_speed if is_on_floor() else air_move_speed
+	if flat_speed > speed_limit:
+		velocity.x *= speed_limit / flat_speed
+		velocity.z *= speed_limit / flat_speed
 
 	_check_slam(fall_speed)
 
@@ -253,7 +229,7 @@ func _physics_process(delta: float) -> void:
 
 	_update_preview()
 	_update_hud()
-	_update_fov(delta, sprinting)
+	_update_fov(delta)
 
 
 func register_trampoline_bounce(trampoline: Node) -> float:
@@ -460,26 +436,21 @@ func _update_hud() -> void:
 		status = "Trampoline ready (E)"
 	if place_mode:
 		status = "PLACE MODE: left click to place, E to cancel   |   " + status
-	hud.text = "HP: %d / %d\n%s\nWASD move | Shift sprint | Space jump | Q dash | E place mode | Esc pause | R restart" % [health, max_health, status]
+	hud.text = "HP: %d / %d\n%s\nWASD move | Space jump | E place mode | Esc pause | R restart" % [health, max_health, status]
 
 
-func _update_fov(delta: float, sprinting: bool) -> void:
+func _update_fov(delta: float) -> void:
 	if not bool(SettingsManager.get_value("dynamic_fov")) or bool(SettingsManager.get_value("reduced_motion")):
-		dash_fov_kick = 0.0
 		camera.fov = base_fov
 		return
 	var air_fov := 0.0
 	if not is_on_floor():
 		var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 		air_fov = clampf(4.0 + absf(velocity.y) * 0.25 + horizontal_speed * 0.2, 4.0, 14.0)
-	var sprint_fov := 10.0 if sprinting else 0.0
-	var motion_fov := minf(24.0, maxf(air_fov, sprint_fov) + dash_fov_kick)
 	var effect_strength := float(SettingsManager.get_value("fov_strength"))
-	var target_fov := clampf(base_fov + motion_fov * effect_strength, 40.0, 140.0)
+	var target_fov := clampf(base_fov + air_fov * effect_strength, 40.0, 140.0)
 	var response := 18.0 if target_fov > camera.fov else 7.0
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-response * delta))
-	if dash_left <= 0.0:
-		dash_fov_kick = lerpf(dash_fov_kick, 0.0, 1.0 - exp(-10.0 * delta))
 
 
 func _show_damage_flash() -> void:
@@ -498,24 +469,3 @@ func _show_damage_flash() -> void:
 	tween.tween_callback(canvas.queue_free)
 
 
-func try_dash() -> bool:
-	if health <= 0 or get_tree().paused or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or UIManager.screen != "" or UIManager.modal.visible:
-		return false
-	if dash_left > 0.0 or dash_charge < dash_minimum_charge:
-		return false
-	var input := Vector2.ZERO
-	if Input.is_physical_key_pressed(KEY_W): input.y -= 1.0
-	if Input.is_physical_key_pressed(KEY_S): input.y += 1.0
-	if Input.is_physical_key_pressed(KEY_A): input.x -= 1.0
-	if Input.is_physical_key_pressed(KEY_D): input.x += 1.0
-	dash_direction = global_transform.basis * Vector3(input.x, 0.0, input.y)
-	if dash_direction.length_squared() < 0.001:
-		dash_direction = -global_transform.basis.z
-	dash_direction.y = 0.0
-	dash_direction = dash_direction.normalized()
-	var strength := clampf((dash_charge - dash_minimum_charge) / maxf(0.01, 1.0 - dash_minimum_charge), 0.0, 1.0)
-	dash_speed = lerpf(dash_min_speed, dash_max_speed, strength)
-	dash_fov_kick = lerpf(10.0, 18.0, strength)
-	dash_left = lerpf(dash_min_duration, dash_max_duration, strength)
-	dash_charge = 0.0
-	return true

@@ -282,32 +282,51 @@ func _burst() -> void:
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
-	var p := CPUParticles3D.new()
-	p.mesh = _get_chunk_mesh()
-	p.material_override = _get_chunk_material(role)
-	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.amount = 22
-	p.lifetime = 0.8
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 0.3 * body_size
-	p.direction = Vector3.UP
-	p.spread = 80.0
-	p.initial_velocity_min = 3.0
-	p.initial_velocity_max = 8.0
-	p.gravity = Vector3(0.0, -20.0, 0.0)
-	p.scale_amount_min = 0.5 * body_size
-	p.scale_amount_max = 1.5 * body_size
-	var shrink := Curve.new()                # chunks shrink away over their lifetime
-	shrink.add_point(Vector2(0.0, 1.0))
-	shrink.add_point(Vector2(0.7, 0.8))
-	shrink.add_point(Vector2(1.0, 0.0))
-	p.scale_amount_curve = shrink
-	p.finished.connect(p.queue_free)
-	scene.add_child(p)
-	p.global_position = global_position + Vector3(0.0, 0.4 * body_size, 0.0)
-	p.emitting = true
+	var popup := Label3D.new()
+	var manager := scene.get_node_or_null("WaveManager")
+	popup.text = "+%d XP" % int(manager.coins_per_kill) if manager != null else "Defeated"
+	popup.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	popup.font_size = 48
+	popup.pixel_size = 0.009
+	popup.outline_size = 10
+	scene.add_child(popup)
+	popup.global_position = global_position + Vector3(0, 1.1 * body_size, 0)
+	var tween := popup.create_tween().set_parallel()
+	if not bool(SettingsManager.get_value("reduced_motion")):
+		tween.tween_property(popup, "position:y", popup.position.y + 0.8, 0.7)
+	tween.tween_property(popup, "modulate:a", 0.0, 0.7)
+	tween.chain().tween_callback(popup.queue_free)
+	var count := mini(18, maxi(0, 144 - get_tree().get_nodes_in_group("enemy_debris").size()))
+	var default_gravity := maxf(0.01, float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)))
+	for index in count:
+		var part := RigidBody3D.new()
+		part.mass = 0.15
+		part.gravity_scale = gravity / default_gravity
+		part.collision_layer = 0
+		part.collision_mask = 1
+		part.linear_damp = 0.4
+		part.angular_damp = 0.8
+		part.add_to_group("enemy_debris")
+		var visual := MeshInstance3D.new()
+		visual.mesh = _get_chunk_mesh()
+		visual.material_override = _get_chunk_material(role)
+		var size := randf_range(1.2, 2.2) * body_size
+		visual.scale = Vector3.ONE * size
+		part.add_child(visual)
+		var collider := CollisionShape3D.new()
+		var shape := SphereShape3D.new()
+		shape.radius = 0.09 * size
+		collider.shape = shape
+		part.add_child(collider)
+		var bounce := PhysicsMaterial.new()
+		bounce.bounce = 0.35
+		bounce.friction = 0.7
+		part.physics_material_override = bounce
+		scene.add_child(part)
+		part.global_position = global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.25, 0.8), randf_range(-0.3, 0.3)) * body_size
+		part.linear_velocity = velocity * 0.25 + Vector3(randf_range(-6.0, 6.0), randf_range(5.0, 10.0), randf_range(-6.0, 6.0))
+		part.angular_velocity = Vector3(randf_range(-9.0, 9.0), randf_range(-9.0, 9.0), randf_range(-9.0, 9.0))
+		get_tree().create_timer(3.5, false).timeout.connect(part.queue_free)
 
 
 # ---------- shared meshes (built once) ----------
