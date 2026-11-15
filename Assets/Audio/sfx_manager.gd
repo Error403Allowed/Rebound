@@ -3,16 +3,16 @@ extends Node
 const SOUNDS := {
 	"enemy_kill": preload("res://Assets/Audio/SFX/enemy_kill.mp3"),
 	"enemy_hit": preload("res://Assets/Audio/SFX/enemy_hit.mp3"),
-	"trampoline_place": preload("res://Assets/Audio/SFX/trampoline_place.wav"),
-	"trampoline_launch": preload("res://Assets/Audio/SFX/trampoline_launch.wav"),
-	"stomp_impact": preload("res://Assets/Audio/SFX/stomp_impact.wav"),
-	"jump": preload("res://Assets/Audio/SFX/jump.wav"),
-	"dash": preload("res://Assets/Audio/SFX/dash.wav"),
-	"player_damage": preload("res://Assets/Audio/SFX/player_damage.wav"),
-	"player_death": preload("res://Assets/Audio/SFX/player_death.wav"),
-	"ui_click": preload("res://Assets/Audio/SFX/ui_click.wav"),
-	"wave_clear": preload("res://Assets/Audio/SFX/wave_clear.wav"),
-	"success": preload("res://Assets/Audio/SFX/success.wav"),
+	"trampoline_place": preload("res://Assets/Audio/SFX/trampoline_place.mp3"),
+	"trampoline_launch": preload("res://Assets/Audio/SFX/trampoline_launch.mp3"),
+	"stomp_impact": preload("res://Assets/Audio/SFX/stomp_impact.mp3"),
+	"jump": preload("res://Assets/Audio/SFX/jump.mp3"),
+	"dash": preload("res://Assets/Audio/SFX/dash.mp3"),
+	"player_damage": preload("res://Assets/Audio/SFX/player_damage.mp3"),
+	"player_death": preload("res://Assets/Audio/SFX/player_death.mp3"),
+	"ui_click": preload("res://Assets/Audio/SFX/ui_click.mp3"),
+	"wave_clear": preload("res://Assets/Audio/SFX/wave_clear.mp3"),
+	"success": preload("res://Assets/Audio/SFX/success.mp3"),
 }
 
 var _players: Array[AudioStreamPlayer] = []
