@@ -27,8 +27,12 @@ func _make_player(stream: AudioStream) -> AudioStreamPlayer:
 	player.stream = stream
 	player.bus = "Master"
 	player.volume_db = SILENCE_DB
+	player.finished.connect(_restart_player.bind(player))
 	add_child(player)
 	return player
+
+func _restart_player(player: AudioStreamPlayer) -> void:
+	player.play()
 
 func play_menu() -> void:
 	if _fade_tween and _fade_tween.is_valid():

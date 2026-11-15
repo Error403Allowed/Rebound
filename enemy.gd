@@ -99,14 +99,8 @@ func _ready() -> void:
 	collision.position.y = 0.45 * size
 	add_child(collision)
 
-	var label := Label3D.new()
-	label.position.y = 1.1 * size + 0.35
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 34
-	label.pixel_size = 0.006
-	label.text = ROLE_NAMES[role]
-	label.visible = bool(SettingsManager.get_value("enemy_labels"))
-	add_child(label)
+	# Enemy role names are intentionally omitted from gameplay.
+	# They will be introduced in a dedicated tutorial or help screen later.
 
 
 func _physics_process(delta: float) -> void:
